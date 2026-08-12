@@ -57,7 +57,7 @@ bot_token: XXX
 #  - token_2
 telegraph_token: xxxx
 user_agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36
-preview_text: 0
+preview_text: 300
 disable_web_page_preview: false
 socks5: 127.0.0.1:1080
 update_interval: 10
@@ -75,6 +75,13 @@ sqlite:
 allowed_users:
   - 123
   - 234
+message_mode: html
+message_tpl: |-
+  <b>{{.SourceTitle}}</b>
+  <a href="{{.RawLink}}">{{.ContentTitle}}</a>
+  {{if .PreviewText}}{{.PreviewText}}
+  {{end}}{{if .Tags}}{{.Tags}}
+  {{end}}
 ```
 
 配置说明：
@@ -83,7 +90,7 @@ allowed_users:
 | --------------------------| ----------------------------------------- | ------------------------------------------ |
 | bot_token                 | Telegram Bot Token                        | 必填                                       |
 | telegraph_token           | Telegraph Token, 用于转存原文到 Telegraph   | 可忽略（不转存原文到 Telegraph ）          |
-| preview_text              | 纯文字预览字数（不借助Telegraph）            |可忽略（默认0, 0为禁用）                    |
+| preview_text              | 纯文字预览字数（不借助Telegraph）            |可忽略（默认300，0为禁用）                  |
 | user_agent                | User Agent                                |可忽略                                     |
 | disable_web_page_preview  | 是否禁用 web 页面预览                       | 可忽略（默认 false, true 为禁用）          |
 | update_interval           | RSS 源扫描间隔（分钟）                      | 可忽略（默认 10）                          |
@@ -93,3 +100,9 @@ allowed_users:
 | sqlite                    | SQLite 配置                               | 可忽略（已配置mysql时，该项失效）          |
 | telegram.endpoint         | 自定义telegram bot api url                | 可忽略（使用默认api url）          |
 | allowed_users             | 允许使用bot的用户telegram id，                        | 可忽略，为空时所有用户都能使用bot          |
+| message_mode              | 推送模板格式，可设为 html 或 markdown        | 可忽略（默认 html）                        |
+| message_tpl               | Go template 格式的推送消息模板               | 可忽略（使用内置模板）                     |
+
+`message_tpl` 可以使用以下字段：`SourceTitle`、`ContentTitle`、`RawLink`、
+`PreviewText`、`TelegraphURL`、`Tags` 和 `EnableTelegraph`。修改后可通过
+`./flowerss-bot -c config.yml -testtpl` 检查模板语法。

@@ -221,14 +221,6 @@ func validateTPL() {
 }
 
 func initTPL() {
-	var tplMsg string
-	if viper.IsSet("message_tpl") {
-		tplMsg = viper.GetString("message_tpl")
-	} else {
-		tplMsg = defaultMessageTpl
-	}
-	MessageTpl = template.Must(template.New("message").Parse(tplMsg))
-
 	if viper.IsSet("message_mode") {
 		switch strings.ToLower(viper.GetString("message_mode")) {
 		case "md", "markdown":
@@ -241,6 +233,15 @@ func initTPL() {
 	} else {
 		MessageMode = defaultMessageTplMode
 	}
+
+	tplMsg := defaultMessageTpl
+	if MessageMode == tb.ModeMarkdown {
+		tplMsg = defaultMessageMarkdownTpl
+	}
+	if viper.IsSet("message_tpl") {
+		tplMsg = viper.GetString("message_tpl")
+	}
+	MessageTpl = template.Must(template.New("message").Parse(tplMsg))
 }
 
 func isInTests() bool {

@@ -62,6 +62,7 @@ func (b *Bot) registerCommands(appCore *core.Core) error {
 		handler.NewOnDocument(b.tb, appCore),
 		handler.NewSet(b.tb, appCore),
 		handler.NewSetFeedTag(appCore),
+		handler.NewSetFeedTitle(appCore),
 		handler.NewSetUpdateInterval(appCore),
 		handler.NewExport(appCore),
 		handler.NewImport(),
@@ -142,7 +143,7 @@ func (b *Bot) BroadcastNews(source *model.Source, subs []*model.Subscribe, conte
 
 		for _, sub := range subs {
 			tpldata := &config.TplData{
-				SourceTitle:     source.Title,
+				SourceTitle:     sub.DisplayTitle(source.Title),
 				ContentTitle:    content.Title,
 				RawLink:         content.RawLink,
 				PreviewText:     previewText,
@@ -207,7 +208,8 @@ func (b *Bot) BroadcastSourceError(source *model.Source) {
 	var u tb.User
 	for _, sub := range subs {
 		message := fmt.Sprintf(
-			"[%s](%s) 已经累计连续%d次更新失败，暂停更新", source.Title, source.Link, config.ErrorThreshold,
+			"[%s](%s) 已经累计连续%d次更新失败，暂停更新",
+			sub.DisplayTitle(source.Title), source.Link, config.ErrorThreshold,
 		)
 		u.ID = sub.UserID
 		_, _ = b.tb.Send(

@@ -30,6 +30,7 @@
 /set 设置订阅
 /check 检查当前订阅
 /setfeedtag [sub id] [tag1] [tag2] 设置订阅标签（最多设置三个Tag，以空格分割）
+/setfeedtitle [sub id] [title] 设置订阅标题（省略title恢复RSS原标题）
 /setinterval [interval] [sub id] 设置订阅刷新频率（可设置多个sub id，以空格分割）
 /activeall 开启所有订阅
 /pauseall 暂停所有订阅
@@ -38,4 +39,4 @@
 /unsuball 取消所有订阅
 /help 帮助
 ```
-详细使用方法请查阅项目[使用文档](https://flowerss-bot.now.sh/#/usage)。 
+详细使用方法请查阅项目[使用文档](https://flowerss-bot.now.sh/#/usage)。

@@ -28,6 +28,7 @@ func (h *Help) Handle(ctx tb.Context) error {
 	/set 设置订阅
 	/check 检查当前订阅
 	/setfeedtag 设置订阅标签
+	/setfeedtitle 设置订阅标题
 	/setinterval 设置订阅刷新频率
 	/activeall 开启所有订阅
 	/pauseall 暂停所有订阅

@@ -94,7 +94,8 @@ const (
 	feedSettingTmpl         = `
 订阅<b>设置</b>
 [id] {{ .source.ID }}
-[标题] {{ .source.Title }}
+[标题] {{if .sub.Title}}{{.sub.Title}}{{else}}{{.source.Title}}{{end}}
+[RSS原标题] {{ .source.Title }}
 [Link] {{.source.Link }}
 [抓取更新] {{if ge .source.ErrorCount .Count }}暂停{{else if lt .source.ErrorCount .Count }}抓取中{{end}}
 [抓取频率] {{ .sub.Interval }}分钟

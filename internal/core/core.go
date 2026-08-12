@@ -146,6 +146,7 @@ func (c *Core) GetUserSubscribedSources(ctx context.Context, userID int64) ([]*m
 			log.Errorf("get source %d failed, %v", subs.SourceID, err)
 			continue
 		}
+		source.Title = subs.DisplayTitle(source.Title)
 		sources = append(sources, source)
 	}
 	return sources, nil
@@ -361,6 +362,20 @@ func (c *Core) SetSubscriptionTag(ctx context.Context, userID int64, sourceID ui
 
 	subscription.Tag = "#" + strings.Join(tags, " #")
 	return c.subscriptionStorage.UpdateSubscription(ctx, userID, sourceID, subscription)
+}
+
+// SetSubscriptionTitle sets a title used only by this subscription. An empty
+// title restores the title supplied by the RSS source.
+func (c *Core) SetSubscriptionTitle(ctx context.Context, userID int64, sourceID uint, title string) error {
+	subscription, err := c.GetSubscription(ctx, userID, sourceID)
+	if err != nil {
+		return err
+	}
+
+	subscription.Title = strings.TrimSpace(title)
+	// Save the whole subscription so an empty title is persisted when the user
+	// restores the RSS source title. GORM Updates(struct) skips zero values.
+	return c.subscriptionStorage.UpsertSubscription(ctx, userID, sourceID, subscription)
 }
 
 // SetSubscriptionInterval

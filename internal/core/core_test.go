@@ -350,6 +350,48 @@ func TestCore_GetSubscription(t *testing.T) {
 	)
 }
 
+func TestCore_SetSubscriptionTitle(t *testing.T) {
+	c, s := getTestCore(t)
+	defer s.Ctrl.Finish()
+	ctx := context.Background()
+	userID := int64(101)
+	sourceID := uint(1)
+
+	t.Run("get subscription error", func(t *testing.T) {
+		s.Subscription.EXPECT().GetSubscription(ctx, userID, sourceID).Return(nil, errors.New("err"))
+		err := c.SetSubscriptionTitle(ctx, userID, sourceID, "custom title")
+		assert.Error(t, err)
+	})
+
+	t.Run("set custom title", func(t *testing.T) {
+		subscription := &model.Subscribe{ID: 1, UserID: userID, SourceID: sourceID}
+		s.Subscription.EXPECT().GetSubscription(ctx, userID, sourceID).Return(subscription, nil)
+		s.Subscription.EXPECT().UpsertSubscription(ctx, userID, sourceID, gomock.Any()).DoAndReturn(
+			func(_ context.Context, _ int64, _ uint, got *model.Subscribe) error {
+				assert.Equal(t, "custom title", got.Title)
+				return nil
+			},
+		)
+
+		err := c.SetSubscriptionTitle(ctx, userID, sourceID, "  custom title  ")
+		assert.NoError(t, err)
+	})
+
+	t.Run("restore source title", func(t *testing.T) {
+		subscription := &model.Subscribe{ID: 1, UserID: userID, SourceID: sourceID, Title: "custom title"}
+		s.Subscription.EXPECT().GetSubscription(ctx, userID, sourceID).Return(subscription, nil)
+		s.Subscription.EXPECT().UpsertSubscription(ctx, userID, sourceID, gomock.Any()).DoAndReturn(
+			func(_ context.Context, _ int64, _ uint, got *model.Subscribe) error {
+				assert.Empty(t, got.Title)
+				return nil
+			},
+		)
+
+		err := c.SetSubscriptionTitle(ctx, userID, sourceID, "")
+		assert.NoError(t, err)
+	})
+}
+
 func TestCore_DisableSourceUpdate(t *testing.T) {
 	c, s := getTestCore(t)
 	defer s.Ctrl.Finish()

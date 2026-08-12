@@ -2,6 +2,7 @@ package scheduler
 
 import (
 	"context"
+	"sort"
 	"sync"
 	"time"
 
@@ -41,6 +42,29 @@ type RssUpdateTask struct {
 	httpClient   *client.HttpClient
 }
 
+type contentUpdate struct {
+	source  *model.Source
+	content *model.Content
+	subs    []*model.Subscribe
+}
+
+func sortContentUpdatesOldestFirst(updates []contentUpdate) {
+	sort.SliceStable(updates, func(i, j int) bool {
+		left := updates[i].content.PublishedAt
+		right := updates[j].content.PublishedAt
+		switch {
+		case left == nil && right == nil:
+			return false
+		case left == nil:
+			return true
+		case right == nil:
+			return false
+		default:
+			return left.Before(*right)
+		}
+	})
+}
+
 // Register 注册rss更新订阅者
 func (t *RssUpdateTask) Register(observer RssUpdateObserver) {
 	t.observerList = append(t.observerList, observer)
@@ -71,6 +95,7 @@ func (t *RssUpdateTask) Start() {
 				time.Sleep(time.Duration(config.UpdateInterval) * time.Minute)
 				continue
 			}
+			var updates []contentUpdate
 			for _, source := range sources {
 				if source.ErrorCount >= config.ErrorThreshold {
 					continue
@@ -92,8 +117,17 @@ func (t *RssUpdateTask) Start() {
 						log.Errorf("get subscriptions failed, %v", err)
 						continue
 					}
-					t.notifyAllObserverUpdate(source, newContents, subs)
+					for _, content := range newContents {
+						updates = append(updates, contentUpdate{source: source, content: content, subs: subs})
+					}
 				}
+			}
+
+			// Feed documents commonly list newest entries first. Queue every new
+			// item from this scan and publish chronologically across all sources.
+			sortContentUpdatesOldestFirst(updates)
+			for _, update := range updates {
+				t.notifyAllObserverUpdate(update.source, []*model.Content{update.content}, update.subs)
 			}
 
 			time.Sleep(time.Duration(config.UpdateInterval) * time.Minute)

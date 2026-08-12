@@ -8,13 +8,14 @@ update_interval: 10
 preview_text: 300 # 推送预览字符数，设为0可关闭
 user_agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36
 
-# 推送模板支持: SourceTitle、ContentTitle、RawLink、PreviewText、
+# 推送模板支持: SourceTitle、ContentTitle、RawLink、PublishedAt、PreviewText、
 # TelegraphURL、Tags、EnableTelegraph
 message_mode: html
 message_tpl: |-
   <b>{{.SourceTitle}}</b>
   {{if .EnableTelegraph}}<a href="{{.TelegraphURL}}">{{.ContentTitle}}</a> | <a href="{{.RawLink}}">原文</a>
   {{else}}<a href="{{.RawLink}}">{{.ContentTitle}}</a>
+  {{end}}{{if .PublishedAt}}发布时间：{{.PublishedAt}}
   {{end}}{{if .PreviewText}}
   {{.PreviewText}}
   {{end}}{{if .Tags}}{{.Tags}}

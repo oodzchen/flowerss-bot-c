@@ -65,6 +65,7 @@ const (
 	defaultMessageTpl     = `<b>{{.SourceTitle}}</b>
 {{if .EnableTelegraph}}<a href="{{.TelegraphURL}}">{{.ContentTitle}}</a> | <a href="{{.RawLink}}">原文</a>
 {{else}}<a href="{{.RawLink}}">{{.ContentTitle}}</a>
+{{end}}{{if .PublishedAt}}发布时间：{{.PublishedAt}}
 {{end}}{{if .PreviewText}}
 {{.PreviewText}}
 {{end}}{{if .Tags}}{{.Tags}}
@@ -73,6 +74,7 @@ const (
 	defaultMessageMarkdownTpl = `*{{.SourceTitle}}*
 {{if .EnableTelegraph}}[{{.ContentTitle}}]({{.TelegraphURL}}) | [原文]({{.RawLink}})
 {{else}}[{{.ContentTitle}}]({{.RawLink}})
+{{end}}{{if .PublishedAt}}发布时间：{{.PublishedAt}}
 {{end}}{{if .PreviewText}}
 {{.PreviewText}}
 {{end}}{{if .Tags}}{{.Tags}}
@@ -86,6 +88,7 @@ type TplData struct {
 	SourceTitle     string
 	ContentTitle    string
 	RawLink         string
+	PublishedAt     string
 	PreviewText     string
 	TelegraphURL    string
 	Tags            string

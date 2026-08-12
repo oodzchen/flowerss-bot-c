@@ -12,6 +12,7 @@ func TestTplData_Render(t1 *testing.T) {
 		SourceTitle     string
 		ContentTitle    string
 		RawLink         string
+		PublishedAt     string
 		PreviewText     string
 		TelegraphURL    string
 		Tags            string
@@ -40,6 +41,15 @@ func TestTplData_Render(t1 *testing.T) {
 			"<b>[aaa] *123*</b>\n<a href=\"https://google.com\">google</a>",
 			false,
 		},
+		{"HTML Mode with published time",
+			fields{
+				SourceTitle: "feed", ContentTitle: "post", RawLink: "https://example.com/post",
+				PublishedAt: "2026-08-12 14:30:00 +08:00",
+			},
+			args{telebot.ModeHTML},
+			"<b>feed</b>\n<a href=\"https://example.com/post\">post</a>\n发布时间：2026-08-12 14:30:00 +08:00",
+			false,
+		},
 	}
 	for _, tt := range tests {
 		t1.Run(tt.name, func(t1 *testing.T) {
@@ -47,6 +57,7 @@ func TestTplData_Render(t1 *testing.T) {
 				SourceTitle:     tt.fields.SourceTitle,
 				ContentTitle:    tt.fields.ContentTitle,
 				RawLink:         tt.fields.RawLink,
+				PublishedAt:     tt.fields.PublishedAt,
 				PreviewText:     tt.fields.PreviewText,
 				TelegraphURL:    tt.fields.TelegraphURL,
 				Tags:            tt.fields.Tags,

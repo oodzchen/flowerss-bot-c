@@ -184,32 +184,28 @@ func (t TplData) replaceHTMLTags(s string) string {
 
 func validateTPL() {
 	testData := []TplData{
-		TplData{
-			"RSS 源标识 - 无预览无telegraph的消息",
-			"这是标题",
-			"https://www.github.com/",
-			"",
-			"",
-			"",
-			false,
+		{
+			SourceTitle:  "RSS 源标识 - 无预览无telegraph的消息",
+			ContentTitle: "这是标题",
+			RawLink:      "https://www.github.com/",
 		},
-		TplData{
-			"RSS源标识 - 有预览无telegraph的消息",
-			"这是标题",
-			"https://www.github.com/",
-			"这里是很长很长很长的消息预览字数补丁紫薯补丁紫薯补丁紫薯补丁紫薯补丁[1](123)",
-			"",
-			"#标签",
-			false,
+		{
+			SourceTitle:  "RSS源标识 - 有预览无telegraph的消息",
+			ContentTitle: "这是标题",
+			RawLink:      "https://www.github.com/",
+			PublishedAt:  "2026-08-12 14:30:00 +08:00",
+			PreviewText:  "这里是很长很长很长的消息预览字数补丁紫薯补丁紫薯补丁紫薯补丁紫薯补丁[1](123)",
+			Tags:         "#标签",
 		},
-		TplData{
-			"RSS源标识 - 有预览有telegraph的消息",
-			"这是标题",
-			"https://www.github.com/",
-			"这里是很长很长很长的消息预览字数补丁紫薯补丁紫薯补丁紫薯补丁紫薯补丁",
-			"https://telegra.ph/markdown-07-07",
-			"#标签1 #标签2",
-			true,
+		{
+			SourceTitle:     "RSS源标识 - 有预览有telegraph的消息",
+			ContentTitle:    "这是标题",
+			RawLink:         "https://www.github.com/",
+			PublishedAt:     "2026-08-12 14:30:00 +08:00",
+			PreviewText:     "这里是很长很长很长的消息预览字数补丁紫薯补丁紫薯补丁紫薯补丁紫薯补丁",
+			TelegraphURL:    "https://telegra.ph/markdown-07-07",
+			Tags:            "#标签1 #标签2",
+			EnableTelegraph: true,
 		},
 	}
 

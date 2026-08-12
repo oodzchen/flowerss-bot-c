@@ -1,5 +1,7 @@
 package model
 
+import "time"
+
 // Content fetcher content
 type Content struct {
 	SourceID     uint
@@ -9,5 +11,6 @@ type Content struct {
 	Title        string
 	Description  string `gorm:"-"` //ignore to db
 	TelegraphURL string
+	PublishedAt  *time.Time
 	EditTime
 }

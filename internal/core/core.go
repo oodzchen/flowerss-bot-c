@@ -292,7 +292,7 @@ func (c *Core) AddSourceContents(
 ) ([]*model.Content, error) {
 	var wg sync.WaitGroup
 	var contents []*model.Content
-	for _, item := range items {
+	for _, item := range feed.SortItemsOldestFirst(items) {
 		wg.Add(1)
 		previewURL := ""
 		itemContent := feed.ItemContent(item)
@@ -307,6 +307,7 @@ func (c *Core) AddSourceContents(
 			HashID:       model.GenHashID(source.Link, item.GUID),
 			RawLink:      item.Link,
 			TelegraphURL: previewURL,
+			PublishedAt:  feed.ItemPublishedAt(item),
 		}
 		contents = append(contents, content)
 		go func() {

@@ -79,6 +79,8 @@ message_mode: html
 message_tpl: |-
   <b>{{.SourceTitle}}</b>
   <a href="{{.RawLink}}">{{.ContentTitle}}</a>
+  {{if .PublishedAt}}发布时间：{{.PublishedAt}}
+  {{end}}
   {{if .PreviewText}}{{.PreviewText}}
   {{end}}{{if .Tags}}{{.Tags}}
   {{end}}
@@ -104,5 +106,7 @@ message_tpl: |-
 | message_tpl               | Go template 格式的推送消息模板               | 可忽略（使用内置模板）                     |
 
 `message_tpl` 可以使用以下字段：`SourceTitle`、`ContentTitle`、`RawLink`、
-`PreviewText`、`TelegraphURL`、`Tags` 和 `EnableTelegraph`。修改后可通过
+`PublishedAt`、`PreviewText`、`TelegraphURL`、`Tags` 和 `EnableTelegraph`。
+`PublishedAt` 格式为 `YYYY-MM-DD HH:mm:ss ±时区`；RSS 未提供发布时间时为空。
+修改后可通过
 `./flowerss-bot -c config.yml -testtpl` 检查模板语法。

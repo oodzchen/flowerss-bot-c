@@ -140,12 +140,17 @@ func (b *Bot) BroadcastNews(source *model.Source, subs []*model.Subscribe, conte
 
 	for _, content := range contents {
 		previewText := preview.TrimDescription(content.Description, config.PreviewText)
+		publishedAt := ""
+		if content.PublishedAt != nil {
+			publishedAt = content.PublishedAt.Format("2006-01-02 15:04:05 -07:00")
+		}
 
 		for _, sub := range subs {
 			tpldata := &config.TplData{
 				SourceTitle:     sub.DisplayTitle(source.Title),
 				ContentTitle:    content.Title,
 				RawLink:         content.RawLink,
+				PublishedAt:     publishedAt,
 				PreviewText:     previewText,
 				TelegraphURL:    content.TelegraphURL,
 				Tags:            sub.Tag,

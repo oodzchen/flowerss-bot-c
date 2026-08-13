@@ -36,8 +36,8 @@ func init() {
 			Thereafter: 100,
 		}
 		zapConfig.Encoding = "json"
-		zapConfig.OutputPaths = []string{logFile}
-		zapConfig.ErrorOutputPaths = []string{logFile}
+		zapConfig.OutputPaths = []string{"stderr", logFile}
+		zapConfig.ErrorOutputPaths = []string{"stderr", logFile}
 
 	} else {
 		zapConfig.OutputPaths = []string{"stderr"}

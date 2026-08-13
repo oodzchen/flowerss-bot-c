@@ -69,6 +69,7 @@ func (o *OnDocument) Handle(ctx tb.Context) error {
 	failIndex := 0
 	var successImportList = make([]opml.Outline, len(outlines))
 	successIndex := 0
+	var mu sync.Mutex
 	wg := &sync.WaitGroup{}
 	for _, outline := range outlines {
 		outline := outline
@@ -77,26 +78,34 @@ func (o *OnDocument) Handle(ctx tb.Context) error {
 			defer wg.Done()
 			source, err := o.core.CreateSource(context.Background(), outline.XMLURL)
 			if err != nil {
+				mu.Lock()
 				failImportList[failIndex] = outline
 				failIndex++
+				mu.Unlock()
 				return
 			}
 
 			err = o.core.AddSubscription(context.Background(), userID, source.ID)
 			if err != nil {
 				if err == core.ErrSubscriptionExist {
+					mu.Lock()
 					successImportList[successIndex] = outline
 					successIndex++
+					mu.Unlock()
 				} else {
+					mu.Lock()
 					failImportList[failIndex] = outline
 					failIndex++
+					mu.Unlock()
 				}
 				return
 			}
 
 			log.Infof("%d subscribe [%d]%s %s", ctx.Chat().ID, source.ID, source.Title, source.Link)
+			mu.Lock()
 			successImportList[successIndex] = outline
 			successIndex++
+			mu.Unlock()
 			return
 		}()
 	}

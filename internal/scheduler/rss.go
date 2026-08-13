@@ -95,6 +95,9 @@ func (t *RssUpdateTask) Start() {
 				time.Sleep(time.Duration(config.UpdateInterval) * time.Minute)
 				continue
 			}
+			if len(sources) > 0 {
+				log.Infof("start updating %d sources", len(sources))
+			}
 			var updates []contentUpdate
 			for _, source := range sources {
 				if source.ErrorCount >= config.ErrorThreshold {
@@ -137,11 +140,11 @@ func (t *RssUpdateTask) Start() {
 
 // getSourceNewContents 获取rss新内容
 func (t *RssUpdateTask) getSourceNewContents(source *model.Source) ([]*model.Content, error) {
-	log.Debugf("fetch source [%d]%s update", source.ID, source.Link)
+	log.Infof("fetching source [%d] %s", source.ID, source.Link)
 
 	rssFeed, err := t.feedParser.ParseFromURL(context.Background(), source.Link)
 	if err != nil {
-		log.Errorf("unable to fetch feed, source %#v, err %v", source, err)
+		log.Errorf("fetch source [%d] %s failed, err: %v", source.ID, source.Link, err)
 		t.core.SourceErrorCountIncr(context.Background(), source.ID)
 		return nil, err
 	}
@@ -149,8 +152,10 @@ func (t *RssUpdateTask) getSourceNewContents(source *model.Source) ([]*model.Con
 
 	newContents, err := t.saveNewContents(source, rssFeed.Items)
 	if err != nil {
+		log.Errorf("save contents for source [%d] %s failed, err: %v", source.ID, source.Link, err)
 		return nil, err
 	}
+	log.Infof("fetch source [%d] %s success, %d items fetched, %d new contents", source.ID, source.Link, len(rssFeed.Items), len(newContents))
 	return newContents, nil
 }
 

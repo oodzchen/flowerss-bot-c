@@ -262,11 +262,13 @@ func (c *Core) CreateSource(ctx context.Context, sourceURL string) (*model.Sourc
 		return nil, err
 	}
 
+	log.Infof("fetching source %s", sourceURL)
 	rssFeed, err := c.feedParser.ParseFromURL(ctx, sourceURL)
 	if err != nil {
-		log.Errorf("ParseFromURL %s failed, %v", sourceURL, err)
+		log.Errorf("fetch source %s failed, %v", sourceURL, err)
 		return nil, err
 	}
+	log.Infof("fetch source %s success, title: %s, %d items fetched", sourceURL, rssFeed.Title, len(rssFeed.Items))
 
 	s = &model.Source{
 		Title:      rssFeed.Title,

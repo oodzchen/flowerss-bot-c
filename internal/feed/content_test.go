@@ -163,3 +163,35 @@ func TestItemContent(t *testing.T) {
 		assert.Equal(t, "short summary", ItemContent(item))
 	})
 }
+
+func TestItemGUID(t *testing.T) {
+	t.Run("prefers GUID when present", func(t *testing.T) {
+		item := &gofeed.Item{GUID: "item-123", Link: "https://example.com/post/1", Title: "Title"}
+		assert.Equal(t, "item-123", ItemGUID(item))
+	})
+
+	t.Run("trims GUID whitespace", func(t *testing.T) {
+		item := &gofeed.Item{GUID: "  item-123 \n ", Link: "https://example.com/post/1"}
+		assert.Equal(t, "item-123", ItemGUID(item))
+	})
+
+	t.Run("falls back to link when GUID is empty", func(t *testing.T) {
+		item := &gofeed.Item{GUID: "", Link: "https://example.com/post/1", Title: "Title"}
+		assert.Equal(t, "https://example.com/post/1", ItemGUID(item))
+	})
+
+	t.Run("falls back to title when GUID and link are empty", func(t *testing.T) {
+		item := &gofeed.Item{GUID: "", Link: "", Title: "Post Title", Description: "Desc"}
+		assert.Equal(t, "Post Title", ItemGUID(item))
+	})
+
+	t.Run("falls back to description when GUID, link and title are empty", func(t *testing.T) {
+		item := &gofeed.Item{GUID: "", Link: "", Title: "", Description: "Desc"}
+		assert.Equal(t, "Desc", ItemGUID(item))
+	})
+
+	t.Run("handles nil item", func(t *testing.T) {
+		assert.Empty(t, ItemGUID(nil))
+	})
+}
+

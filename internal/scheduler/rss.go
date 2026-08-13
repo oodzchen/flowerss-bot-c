@@ -165,7 +165,7 @@ func (t *RssUpdateTask) saveNewContents(
 ) ([]*model.Content, error) {
 	var newItems []*gofeed.Item
 	for _, item := range items {
-		hashID := model.GenHashID(s.Link, item.GUID)
+		hashID := model.GenHashID(s.Link, feed.ItemGUID(item))
 		exist, err := t.core.ContentHashIDExist(context.Background(), hashID)
 		if err != nil {
 			log.Errorf("check item hash id failed, %v", err)

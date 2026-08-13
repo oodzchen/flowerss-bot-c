@@ -301,12 +301,13 @@ func (c *Core) AddSourceContents(
 		if config.EnableTelegraph && len([]rune(itemContent)) > config.PreviewText {
 			previewURL, _ = tgraph.PublishHtml(source.Title, item.Title, item.Link, itemContent)
 		}
+		itemGUID := feed.ItemGUID(item)
 		content := &model.Content{
 			Title:        strings.Trim(item.Title, " "),
 			Description:  feed.ItemDescription(item),
 			SourceID:     source.ID,
-			RawID:        item.GUID,
-			HashID:       model.GenHashID(source.Link, item.GUID),
+			RawID:        itemGUID,
+			HashID:       model.GenHashID(source.Link, itemGUID),
 			RawLink:      item.Link,
 			TelegraphURL: previewURL,
 			PublishedAt:  feed.ItemPublishedAt(item),

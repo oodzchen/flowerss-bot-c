@@ -8,6 +8,24 @@ import (
 	"github.com/mmcdole/gofeed"
 )
 
+// ItemGUID returns the best available unique identifier for a feed item.
+// It prioritizes item.GUID, falling back to item.Link, item.Title, and ItemDescription.
+func ItemGUID(item *gofeed.Item) string {
+	if item == nil {
+		return ""
+	}
+	if guid := strings.TrimSpace(item.GUID); guid != "" {
+		return guid
+	}
+	if link := strings.TrimSpace(item.Link); link != "" {
+		return link
+	}
+	if title := strings.TrimSpace(item.Title); title != "" {
+		return title
+	}
+	return ItemDescription(item)
+}
+
 // ItemPublishedAt returns the publication time normalized by gofeed. Some
 // Atom/JSON feeds omit a distinct publication time, so updated is used as a
 // fallback.

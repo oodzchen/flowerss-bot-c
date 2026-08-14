@@ -12,6 +12,8 @@ type Subscribe struct {
 	Tag                string
 	Interval           int
 	WaitTime           int
+	// TranslateLang 推送前翻译的目标语言（语言代码，如 zh/en/ja），为空表示不翻译
+	TranslateLang string
 	EditTime
 }
 

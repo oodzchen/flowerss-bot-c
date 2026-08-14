@@ -102,6 +102,7 @@ const (
 [通知] {{if eq .sub.EnableNotification 0}}关闭{{else if eq .sub.EnableNotification 1}}开启{{end}}
 [Telegraph] {{if eq .sub.EnableTelegraph 0}}关闭{{else if eq .sub.EnableTelegraph 1}}开启{{end}}
 [Tag] {{if .sub.Tag}}{{ .sub.Tag }}{{else}}无{{end}}
+[翻译] {{if .sub.TranslateLang}}{{ .sub.TranslateLang }}{{else}}无{{end}}
 `
 )
 

@@ -383,6 +383,42 @@ func (c *Core) SetSubscriptionTitle(ctx context.Context, userID int64, sourceID 
 	return c.subscriptionStorage.UpsertSubscription(ctx, userID, sourceID, subscription)
 }
 
+// SetSubscriptionLang sets the translation target language of one subscription.
+// An empty lang disables translation for it.
+func (c *Core) SetSubscriptionLang(ctx context.Context, userID int64, sourceID uint, lang string) error {
+	subscription, err := c.GetSubscription(ctx, userID, sourceID)
+	if err != nil {
+		return err
+	}
+
+	subscription.TranslateLang = lang
+	return c.subscriptionStorage.UpsertSubscription(ctx, userID, sourceID, subscription)
+}
+
+// SetSubscriptionLangForAll sets the translation target language of every
+// subscription owned by userID, returning how many subscriptions changed.
+func (c *Core) SetSubscriptionLangForAll(ctx context.Context, userID int64, lang string) (int, error) {
+	opt := &storage.GetSubscriptionsOptions{Count: -1}
+	result, err := c.subscriptionStorage.GetSubscriptionsByUserID(ctx, userID, opt)
+	if err != nil {
+		return 0, err
+	}
+
+	count := 0
+	for _, sub := range result.Subscriptions {
+		if sub.TranslateLang == lang {
+			continue
+		}
+		sub.TranslateLang = lang
+		if err := c.subscriptionStorage.UpsertSubscription(ctx, userID, sub.SourceID, sub); err != nil {
+			log.Errorf("set subscription translate lang failed, userID %d sourceID %d, %v", userID, sub.SourceID, err)
+			continue
+		}
+		count++
+	}
+	return count, nil
+}
+
 // SetSubscriptionInterval
 func (c *Core) SetSubscriptionInterval(ctx context.Context, userID int64, sourceID uint, interval int) error {
 	subscription, err := c.GetSubscription(ctx, userID, sourceID)

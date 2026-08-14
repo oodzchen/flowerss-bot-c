@@ -30,6 +30,7 @@ func (h *Help) Handle(ctx tb.Context) error {
 	/setfeedtag 设置订阅标签
 	/setfeedtitle 设置订阅标题
 	/setinterval 设置订阅刷新频率
+	/setlang 设置订阅推送翻译语言（如 /setlang zh）
 	/activeall 开启所有订阅
 	/pauseall 暂停所有订阅
 	/help 帮助

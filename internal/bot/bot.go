@@ -16,11 +16,14 @@ import (
 	"github.com/indes/flowerss-bot/internal/core"
 	"github.com/indes/flowerss-bot/internal/log"
 	"github.com/indes/flowerss-bot/internal/model"
+	"github.com/indes/flowerss-bot/internal/translate"
 )
 
 type Bot struct {
-	core *core.Core
-	tb   *tb.Bot // telebot.Bot instance
+	core       *core.Core
+	tb         *tb.Bot // telebot.Bot instance
+	translator translate.Translator
+	transCache *translate.Cache
 }
 
 func NewBot(core *core.Core) *Bot {
@@ -38,7 +41,9 @@ func NewBot(core *core.Core) *Bot {
 	}
 
 	b := &Bot{
-		core: core,
+		core:       core,
+		translator: translate.NewFromConfig(core.HttpClient()),
+		transCache: translate.NewCache(2000),
 	}
 
 	var err error
@@ -64,6 +69,7 @@ func (b *Bot) registerCommands(appCore *core.Core) error {
 		handler.NewSetFeedTag(appCore),
 		handler.NewSetFeedTitle(appCore),
 		handler.NewSetUpdateInterval(appCore),
+		handler.NewSetLang(appCore),
 		handler.NewExport(appCore),
 		handler.NewImport(),
 		handler.NewPauseAll(appCore),
@@ -146,12 +152,19 @@ func (b *Bot) BroadcastNews(source *model.Source, subs []*model.Subscribe, conte
 		}
 
 		for _, sub := range subs {
+			contentTitle, subPreviewText := content.Title, previewText
+			if b.translator != nil && sub.TranslateLang != "" {
+				contentTitle, subPreviewText = b.translateContent(
+					content.HashID, sub.TranslateLang, content.Title, previewText,
+				)
+			}
+
 			tpldata := &config.TplData{
 				SourceTitle:     sub.DisplayTitle(source.Title),
-				ContentTitle:    content.Title,
+				ContentTitle:    contentTitle,
 				RawLink:         content.RawLink,
 				PublishedAt:     publishedAt,
-				PreviewText:     previewText,
+				PreviewText:     subPreviewText,
 				TelegraphURL:    content.TelegraphURL,
 				Tags:            sub.Tag,
 				EnableTelegraph: sub.EnableTelegraph == 1 && content.TelegraphURL != "",
@@ -202,6 +215,45 @@ func (b *Bot) BroadcastNews(source *model.Source, subs []*model.Subscribe, conte
 			}
 		}
 	}
+}
+
+// translateContent returns the translated title and preview of one content in
+// one target language, falling back to the original text when translation
+// fails. Results are cached per (content hash, language) so content pushed to
+// many subscribers only triggers one translation per pair.
+func (b *Bot) translateContent(hashID, lang, title, previewText string) (string, string) {
+	key := hashID + "|" + lang
+	if cached, ok := b.transCache.Get(key); ok {
+		return cached.Title, cached.Preview
+	}
+
+	ctx := context.Background()
+	translatedTitle := title
+	if strings.TrimSpace(title) != "" {
+		if translated, err := b.translator.Translate(ctx, title, lang); err != nil {
+			zap.S().Warnw(
+				"translate title failed, fallback to original",
+				"error", err.Error(), "lang", lang, "hash", hashID,
+			)
+		} else {
+			translatedTitle = translated
+		}
+	}
+
+	translatedPreview := previewText
+	if strings.TrimSpace(previewText) != "" {
+		if translated, err := b.translator.Translate(ctx, previewText, lang); err != nil {
+			zap.S().Warnw(
+				"translate preview failed, fallback to original",
+				"error", err.Error(), "lang", lang, "hash", hashID,
+			)
+		} else {
+			translatedPreview = translated
+		}
+	}
+
+	b.transCache.Put(key, translate.CachedTranslation{Title: translatedTitle, Preview: translatedPreview})
+	return translatedTitle, translatedPreview
 }
 
 // BroadcastSourceError send fetcher update error message to subscribers

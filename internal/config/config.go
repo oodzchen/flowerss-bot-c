@@ -58,6 +58,19 @@ var (
 
 	// DBLogMode 是否打印数据库日志
 	DBLogMode bool = false
+
+	// TranslateProvider 翻译服务提供商（llm/openrouter = OpenAI 兼容接口，后续可扩展 google/deepl 等）
+	TranslateProvider string = "llm"
+	// TranslateBaseURL OpenAI 兼容翻译接口地址
+	TranslateBaseURL string = "https://api.deepseek.com/v1"
+	// TranslateAPIKey 翻译接口 API Key（Ollama 等本地服务可留空）
+	TranslateAPIKey string
+	// TranslateModel 翻译使用的模型名；OpenRouter 需填 厂商/模型 形式的模型 ID
+	TranslateModel string = "deepseek-chat"
+	// TranslateHTTPReferer OpenRouter 可选：你的站点地址，用于排行榜统计
+	TranslateHTTPReferer string
+	// TranslateXTitle OpenRouter 可选：应用名称，用于排行榜统计
+	TranslateXTitle string
 )
 
 const (

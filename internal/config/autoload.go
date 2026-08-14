@@ -148,6 +148,32 @@ func init() {
 	if viper.IsSet("log.db_log") {
 		DBLogMode = viper.GetBool("log.db_log")
 	}
+
+	if viper.IsSet("translate.provider") {
+		TranslateProvider = viper.GetString("translate.provider")
+	}
+	if viper.IsSet("translate.base_url") {
+		TranslateBaseURL = viper.GetString("translate.base_url")
+	}
+	if viper.IsSet("translate.api_key") {
+		TranslateAPIKey = viper.GetString("translate.api_key")
+	}
+	translateModelSet := viper.IsSet("translate.model")
+	if translateModelSet {
+		TranslateModel = viper.GetString("translate.model")
+	}
+	if viper.IsSet("translate.http_referer") {
+		TranslateHTTPReferer = viper.GetString("translate.http_referer")
+	}
+	if viper.IsSet("translate.x_title") {
+		TranslateXTitle = viper.GetString("translate.x_title")
+	}
+
+	// OpenRouter 要求模型 ID 为 厂商/模型 形式（如 deepseek/deepseek-chat），
+	// 未显式指定时给一个合法默认值，避免裸模型名 404。
+	if !translateModelSet && strings.ToLower(TranslateProvider) == "openrouter" {
+		TranslateModel = "deepseek/deepseek-chat"
+	}
 }
 
 func (t TplData) Render(mode tb.ParseMode) (string, error) {

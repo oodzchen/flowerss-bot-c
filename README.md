@@ -32,6 +32,7 @@
 /setfeedtag [sub id] [tag1] [tag2] 设置订阅标签（最多设置三个Tag，以空格分割）
 /setfeedtitle [sub id] [title] 设置订阅标题（省略title恢复RSS原标题）
 /setinterval [interval] [sub id] 设置订阅刷新频率（可设置多个sub id，以空格分割）
+/setlang [lang] 设置订阅推送翻译语言（如 /setlang zh；/setlang [sub id] [lang] 只设置单个订阅；/setlang off 关闭）
 /activeall 开启所有订阅
 /pauseall 暂停所有订阅
 /import 导入 OPML 文件
@@ -40,3 +41,29 @@
 /help 帮助
 ```
 详细使用方法请查阅项目[使用文档](https://flowerss-bot.now.sh/#/usage)。
+
+## 推送翻译（可选）
+
+推送前可把 RSS 内容翻译为目标语言（标题 + 预览正文），基于 LLM 的 OpenAI 兼容接口，支持 DeepSeek / OpenAI / OpenRouter / Ollama 等任意后端，在 `config.yml` 的 `translate` 段配置：
+
+```yaml
+translate:
+  provider: llm                     # 或 openrouter
+  base_url: https://api.deepseek.com/v1
+  api_key: sk-xxx
+  model: deepseek-chat              # OpenRouter 填 厂商/模型，如 anthropic/claude-3.5-sonnet
+```
+
+OpenRouter 示例：
+
+```yaml
+translate:
+  provider: openrouter
+  base_url: https://openrouter.ai/api/v1
+  api_key: sk-or-v1-xxx
+  model: anthropic/claude-3.5-sonnet   # 在 openrouter.ai/models 可查到任意模型 ID
+  # http_referer: https://your-site.example
+  # x_title: flowerss-bot
+```
+
+用户用 `/setlang <语言代码>` 开启翻译（如 `/setlang zh`），语言代码支持 `zh en ja ko fr de ru es` 等。

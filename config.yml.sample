@@ -35,6 +35,17 @@ log:
   level: release
   db_log: false # 打印数据库日志，false则只会打印数据库错误日志
 
+# 推送前翻译（基于 LLM 的 OpenAI 兼容接口）
+# provider 可选 llm / openrouter（openrouter 时 model 必须填 厂商/模型 形式，
+# 例如 anthropic/claude-3.5-sonnet、openai/gpt-4o-mini、deepseek/deepseek-chat）
+translate:
+  provider: llm
+  base_url: https://api.deepseek.com/v1 # OpenRouter: https://openrouter.ai/api/v1；本地 Ollama: http://127.0.0.1:11434/v1（可不填 api_key）
+  api_key: ""                            # DeepSeek 填 sk-xxx；OpenRouter 填 sk-or-v1-xxx；Ollama 可留空
+  model: deepseek-chat                   # OpenAI 可填 gpt-4o-mini；OpenRouter 填 厂商/模型（如 anthropic/claude-3.5-sonnet）；Ollama 填你拉取的模型名
+  # http_referer: https://your-site.example  # 可选，OpenRouter 排行榜统计用
+  # x_title: flowerss-bot                    # 可选，OpenRouter 排行榜统计用
+
 #  file: ./flowerss.log
 
 sqlite:

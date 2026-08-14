@@ -402,6 +402,23 @@ func (c *Core) SetSubscriptionLangForAll(ctx context.Context, userID int64, lang
 	return int(count), err
 }
 
+// SetSubscriptionTimezone sets the timezone of one subscription.
+// An empty tz resets timezone for it.
+func (c *Core) SetSubscriptionTimezone(ctx context.Context, userID int64, sourceID uint, tz string) error {
+	if _, err := c.GetSubscription(ctx, userID, sourceID); err != nil {
+		return err
+	}
+
+	_, err := c.subscriptionStorage.UpdateSubscriptionTimezone(ctx, userID, sourceID, tz)
+	return err
+}
+
+// SetSubscriptionTimezoneForAll sets the timezone of every subscription owned by userID.
+func (c *Core) SetSubscriptionTimezoneForAll(ctx context.Context, userID int64, tz string) (int, error) {
+	count, err := c.subscriptionStorage.UpdateSubscriptionsTimezone(ctx, userID, tz)
+	return int(count), err
+}
+
 // SetSubscriptionInterval
 func (c *Core) SetSubscriptionInterval(ctx context.Context, userID int64, sourceID uint, interval int) error {
 	subscription, err := c.GetSubscription(ctx, userID, sourceID)

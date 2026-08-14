@@ -103,6 +103,7 @@ const (
 [Telegraph] {{if eq .sub.EnableTelegraph 0}}关闭{{else if eq .sub.EnableTelegraph 1}}开启{{end}}
 [Tag] {{if .sub.Tag}}{{ .sub.Tag }}{{else}}无{{end}}
 [翻译] {{if .sub.TranslateLang}}{{ .sub.TranslateLang }}{{else}}无{{end}}
+[时区] {{if .sub.Timezone}}{{ .sub.Timezone }}{{else}}无{{end}}
 `
 )
 

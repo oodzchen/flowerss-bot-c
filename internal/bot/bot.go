@@ -16,6 +16,7 @@ import (
 	"github.com/indes/flowerss-bot/internal/core"
 	"github.com/indes/flowerss-bot/internal/log"
 	"github.com/indes/flowerss-bot/internal/model"
+	"github.com/indes/flowerss-bot/internal/timezone"
 	"github.com/indes/flowerss-bot/internal/translate"
 )
 
@@ -70,6 +71,7 @@ func (b *Bot) registerCommands(appCore *core.Core) error {
 		handler.NewSetFeedTitle(appCore),
 		handler.NewSetUpdateInterval(appCore),
 		handler.NewSetLang(appCore),
+		handler.NewSetTZ(appCore),
 		handler.NewTranslate(b.translator),
 		handler.NewExport(appCore),
 		handler.NewImport(),
@@ -154,10 +156,6 @@ func (b *Bot) BroadcastNews(source *model.Source, subs []*model.Subscribe, conte
 
 	for _, content := range contents {
 		previewText := preview.TrimDescription(content.Description, config.PreviewText)
-		publishedAt := ""
-		if content.PublishedAt != nil {
-			publishedAt = content.PublishedAt.Format("2006-01-02 15:04:05 -07:00")
-		}
 
 		for _, sub := range subs {
 			contentTitle, subPreviewText := content.Title, previewText
@@ -179,6 +177,17 @@ func (b *Bot) BroadcastNews(source *model.Source, subs []*model.Subscribe, conte
 						content.HashID, sub.TranslateLang, content.Title, previewText,
 					)
 				}
+			}
+
+			publishedAt := ""
+			if content.PublishedAt != nil {
+				pubTime := *content.PublishedAt
+				if sub.Timezone != "" {
+					if loc, err := timezone.ParseLocation(sub.Timezone); err == nil && loc != nil {
+						pubTime = pubTime.In(loc)
+					}
+				}
+				publishedAt = pubTime.Format("2006-01-02 15:04:05 -07:00")
 			}
 
 			tpldata := &config.TplData{

@@ -282,4 +282,26 @@ func TestSubscriptionLangUpdate(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Empty(t, sub.TranslateLang)
 	})
+
+	t.Run("update single subscription timezone", func(t *testing.T) {
+		affected, err := s.UpdateSubscriptionTimezone(ctx, 4001, 1, "Asia/Shanghai")
+		assert.NoError(t, err)
+		assert.Equal(t, int64(1), affected)
+
+		sub, err := s.GetSubscription(ctx, 4001, 1)
+		assert.NoError(t, err)
+		assert.Equal(t, "Asia/Shanghai", sub.Timezone)
+	})
+
+	t.Run("update all subscriptions timezone", func(t *testing.T) {
+		affected, err := s.UpdateSubscriptionsTimezone(ctx, 4001, "+08:00")
+		assert.NoError(t, err)
+		assert.Equal(t, int64(2), affected)
+
+		for _, sourceID := range []uint{1, 2} {
+			sub, err := s.GetSubscription(ctx, 4001, sourceID)
+			assert.NoError(t, err)
+			assert.Equal(t, "+08:00", sub.Timezone)
+		}
+	})
 }

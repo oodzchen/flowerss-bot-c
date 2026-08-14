@@ -440,6 +440,36 @@ func (mr *MockSubscriptionMockRecorder) UpdateSubscriptionsLang(ctx, userID, lan
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateSubscriptionsLang", reflect.TypeOf((*MockSubscription)(nil).UpdateSubscriptionsLang), ctx, userID, lang)
 }
 
+// UpdateSubscriptionTimezone mocks base method.
+func (m *MockSubscription) UpdateSubscriptionTimezone(ctx context.Context, userID int64, sourceID uint, tz string) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateSubscriptionTimezone", ctx, userID, sourceID, tz)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UpdateSubscriptionTimezone indicates an expected call of UpdateSubscriptionTimezone.
+func (mr *MockSubscriptionMockRecorder) UpdateSubscriptionTimezone(ctx, userID, sourceID, tz interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateSubscriptionTimezone", reflect.TypeOf((*MockSubscription)(nil).UpdateSubscriptionTimezone), ctx, userID, sourceID, tz)
+}
+
+// UpdateSubscriptionsTimezone mocks base method.
+func (m *MockSubscription) UpdateSubscriptionsTimezone(ctx context.Context, userID int64, tz string) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateSubscriptionsTimezone", ctx, userID, tz)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UpdateSubscriptionsTimezone indicates an expected call of UpdateSubscriptionsTimezone.
+func (mr *MockSubscriptionMockRecorder) UpdateSubscriptionsTimezone(ctx, userID, tz interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateSubscriptionsTimezone", reflect.TypeOf((*MockSubscription)(nil).UpdateSubscriptionsTimezone), ctx, userID, tz)
+}
+
 // UpsertSubscription mocks base method.
 func (m *MockSubscription) UpsertSubscription(ctx context.Context, userID int64, sourceID uint, newSubscription *model.Subscribe) error {
 	m.ctrl.T.Helper()

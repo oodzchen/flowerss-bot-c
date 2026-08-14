@@ -211,3 +211,27 @@ func (s *SubscriptionStorageImpl) UpdateSubscriptionsLang(
 	}
 	return result.RowsAffected, nil
 }
+
+// UpdateSubscriptionTimezone updates the timezone of one subscription.
+func (s *SubscriptionStorageImpl) UpdateSubscriptionTimezone(
+	ctx context.Context, userID int64, sourceID uint, tz string,
+) (int64, error) {
+	result := s.db.WithContext(ctx).Where(
+		"user_id = ? and source_id = ?", userID, sourceID,
+	).Update("timezone", tz)
+	if result.Error != nil {
+		return 0, result.Error
+	}
+	return result.RowsAffected, nil
+}
+
+// UpdateSubscriptionsTimezone updates the timezone of every subscription owned by userID.
+func (s *SubscriptionStorageImpl) UpdateSubscriptionsTimezone(
+	ctx context.Context, userID int64, tz string,
+) (int64, error) {
+	result := s.db.WithContext(ctx).Where("user_id = ?", userID).Update("timezone", tz)
+	if result.Error != nil {
+		return 0, result.Error
+	}
+	return result.RowsAffected, nil
+}

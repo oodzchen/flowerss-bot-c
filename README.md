@@ -33,6 +33,7 @@
 /setfeedtitle [sub id] [title] 设置订阅标题（省略title恢复RSS原标题）
 /setinterval [interval] [sub id] 设置订阅刷新频率（可设置多个sub id，以空格分割）
 /setlang [lang] 设置订阅推送翻译语言（如 /setlang zh；/setlang [sub id] [lang] 只设置单个订阅；/setlang off 关闭）
+/settz [tz] 设置订阅推送时间显示时区（如 /settz Asia/Shanghai 或 /settz +08:00；/settz [sub id] [tz] 只设置单个订阅；/settz off 重置）
 /translate [lang] [text] 测试翻译服务是否可用（调试用，如 /translate zh Hello world）
 /activeall 开启所有订阅
 /pauseall 暂停所有订阅

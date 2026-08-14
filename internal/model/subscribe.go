@@ -14,6 +14,8 @@ type Subscribe struct {
 	WaitTime           int
 	// TranslateLang 推送前翻译的目标语言（语言代码，如 zh/en/ja），为空表示不翻译
 	TranslateLang string
+	// Timezone 推送时间显示的时区（如 Asia/Shanghai, +08:00, UTC），为空表示默认
+	Timezone string
 	EditTime
 }
 

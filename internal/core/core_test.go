@@ -449,6 +449,41 @@ func TestCore_SetSubscriptionLangForAll(t *testing.T) {
 	})
 }
 
+func TestCore_SetSubscriptionTimezone(t *testing.T) {
+	c, s := getTestCore(t)
+	defer s.Ctrl.Finish()
+	ctx := context.Background()
+	userID := int64(101)
+	sourceID := uint(1)
+
+	t.Run("success", func(t *testing.T) {
+		s.Subscription.EXPECT().GetSubscription(ctx, userID, sourceID).Return(&model.Subscribe{}, nil)
+		s.Subscription.EXPECT().UpdateSubscriptionTimezone(ctx, userID, sourceID, "Asia/Shanghai").Return(int64(1), nil)
+		err := c.SetSubscriptionTimezone(ctx, userID, sourceID, "Asia/Shanghai")
+		assert.NoError(t, err)
+	})
+
+	t.Run("subscription not exist", func(t *testing.T) {
+		s.Subscription.EXPECT().GetSubscription(ctx, userID, sourceID).Return(nil, storage.ErrRecordNotFound)
+		err := c.SetSubscriptionTimezone(ctx, userID, sourceID, "Asia/Shanghai")
+		assert.Equal(t, ErrSubscriptionNotExist, err)
+	})
+}
+
+func TestCore_SetSubscriptionTimezoneForAll(t *testing.T) {
+	c, s := getTestCore(t)
+	defer s.Ctrl.Finish()
+	ctx := context.Background()
+	userID := int64(101)
+
+	t.Run("update all timezones", func(t *testing.T) {
+		s.Subscription.EXPECT().UpdateSubscriptionsTimezone(ctx, userID, "+08:00").Return(int64(2), nil)
+		count, err := c.SetSubscriptionTimezoneForAll(ctx, userID, "+08:00")
+		assert.NoError(t, err)
+		assert.Equal(t, 2, count)
+	})
+}
+
 func TestCore_DisableSourceUpdate(t *testing.T) {
 	c, s := getTestCore(t)
 	defer s.Ctrl.Finish()

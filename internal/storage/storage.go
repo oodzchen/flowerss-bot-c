@@ -77,6 +77,10 @@ type Subscription interface {
 	UpdateSubscriptionLang(ctx context.Context, userID int64, sourceID uint, lang string) (int64, error)
 	// UpdateSubscriptionsLang 批量更新某用户全部订阅的翻译语言，返回受影响行数
 	UpdateSubscriptionsLang(ctx context.Context, userID int64, lang string) (int64, error)
+	// UpdateSubscriptionTimezone 更新单个订阅的时区（显式列更新，空值也会写入）
+	UpdateSubscriptionTimezone(ctx context.Context, userID int64, sourceID uint, tz string) (int64, error)
+	// UpdateSubscriptionsTimezone 批量更新某用户全部订阅的时区，返回受影响行数
+	UpdateSubscriptionsTimezone(ctx context.Context, userID int64, tz string) (int64, error)
 }
 
 type Content interface {

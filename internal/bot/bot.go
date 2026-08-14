@@ -70,6 +70,7 @@ func (b *Bot) registerCommands(appCore *core.Core) error {
 		handler.NewSetFeedTitle(appCore),
 		handler.NewSetUpdateInterval(appCore),
 		handler.NewSetLang(appCore),
+		handler.NewTranslate(b.translator),
 		handler.NewExport(appCore),
 		handler.NewImport(),
 		handler.NewPauseAll(appCore),
@@ -136,11 +137,18 @@ func (b *Bot) SourceUpdateError(source *model.Source) {
 
 // BroadcastNews send new contents message to subscriber
 func (b *Bot) BroadcastNews(source *model.Source, subs []*model.Subscribe, contents []*model.Content) {
+	translatedSubs := 0
+	for _, sub := range subs {
+		if sub.TranslateLang != "" {
+			translatedSubs++
+		}
+	}
 	zap.S().Infow(
 		"broadcast news",
 		"fetcher id", source.ID,
 		"fetcher title", source.Title,
 		"subscriber count", len(subs),
+		"translation enabled subscribers", translatedSubs,
 		"new contents", len(contents),
 	)
 
@@ -153,10 +161,24 @@ func (b *Bot) BroadcastNews(source *model.Source, subs []*model.Subscribe, conte
 
 		for _, sub := range subs {
 			contentTitle, subPreviewText := content.Title, previewText
-			if b.translator != nil && sub.TranslateLang != "" {
-				contentTitle, subPreviewText = b.translateContent(
-					content.HashID, sub.TranslateLang, content.Title, previewText,
-				)
+			if sub.TranslateLang != "" {
+				if b.translator == nil {
+					zap.S().Warnw(
+						"translation requested but translator not configured, pushing original",
+						"user id", sub.UserID, "source id", sub.SourceID, "lang", sub.TranslateLang,
+					)
+				} else {
+					zap.S().Debugw(
+						"translating content for subscriber",
+						"user id", sub.UserID,
+						"source id", sub.SourceID,
+						"hash", content.HashID,
+						"lang", sub.TranslateLang,
+					)
+					contentTitle, subPreviewText = b.translateContent(
+						content.HashID, sub.TranslateLang, content.Title, previewText,
+					)
+				}
 			}
 
 			tpldata := &config.TplData{
@@ -224,36 +246,66 @@ func (b *Bot) BroadcastNews(source *model.Source, subs []*model.Subscribe, conte
 func (b *Bot) translateContent(hashID, lang, title, previewText string) (string, string) {
 	key := hashID + "|" + lang
 	if cached, ok := b.transCache.Get(key); ok {
+		zap.S().Debugw("translate cache hit", "hash", hashID, "lang", lang)
 		return cached.Title, cached.Preview
 	}
 
 	ctx := context.Background()
+	zap.S().Debugw(
+		"translate start",
+		"hash", hashID,
+		"lang", lang,
+		"title_len", len([]rune(title)),
+		"preview_len", len([]rune(previewText)),
+	)
+
 	translatedTitle := title
 	if strings.TrimSpace(title) != "" {
-		if translated, err := b.translator.Translate(ctx, title, lang); err != nil {
+		translated, err := b.translator.Translate(ctx, title, lang)
+		if err != nil {
 			zap.S().Warnw(
 				"translate title failed, fallback to original",
 				"error", err.Error(), "lang", lang, "hash", hashID,
 			)
 		} else {
 			translatedTitle = translated
+			zap.S().Debugw(
+				"translate title success",
+				"hash", hashID, "lang", lang,
+				"from", truncate(title, 120), "to", truncate(translated, 120),
+			)
 		}
 	}
 
 	translatedPreview := previewText
 	if strings.TrimSpace(previewText) != "" {
-		if translated, err := b.translator.Translate(ctx, previewText, lang); err != nil {
+		translated, err := b.translator.Translate(ctx, previewText, lang)
+		if err != nil {
 			zap.S().Warnw(
 				"translate preview failed, fallback to original",
 				"error", err.Error(), "lang", lang, "hash", hashID,
 			)
 		} else {
 			translatedPreview = translated
+			zap.S().Debugw(
+				"translate preview success",
+				"hash", hashID, "lang", lang,
+				"from_len", len([]rune(previewText)), "to_len", len([]rune(translated)),
+			)
 		}
 	}
 
 	b.transCache.Put(key, translate.CachedTranslation{Title: translatedTitle, Preview: translatedPreview})
 	return translatedTitle, translatedPreview
+}
+
+// truncate limits a string to n runes for log readability.
+func truncate(s string, n int) string {
+	r := []rune(s)
+	if len(r) <= n {
+		return s
+	}
+	return string(r[:n]) + "..."
 }
 
 // BroadcastSourceError send fetcher update error message to subscribers

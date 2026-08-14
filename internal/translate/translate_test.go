@@ -90,6 +90,23 @@ func TestLLMTranslator_TranslateAPIError(t *testing.T) {
 	_, err := tr.Translate(context.Background(), "hello", "zh")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid api key")
+	assert.Contains(t, err.Error(), "401")
+	assert.Contains(t, err.Error(), "chat/completions")
+}
+
+func TestLLMTranslator_TranslateNonJSONError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte(`<html>404 not found</html>`))
+	}))
+	defer srv.Close()
+
+	httpClient := client.NewHttpClient()
+	tr := NewLLMTranslator(httpClient, srv.URL, "k", "m")
+	_, err := tr.Translate(context.Background(), "hello", "zh")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "404")
+	assert.Contains(t, err.Error(), "404 not found")
 }
 
 func TestLLMTranslator_TranslateOpenRouter(t *testing.T) {

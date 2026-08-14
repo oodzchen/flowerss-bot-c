@@ -118,7 +118,7 @@ func (t *LLMTranslator) Translate(ctx context.Context, text, targetLang string) 
 
 	resp, err := t.httpClient.Client().Do(req)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("translate request failed (%s): %w", t.baseURL+"/chat/completions", err)
 	}
 	defer resp.Body.Close()
 
@@ -130,9 +130,15 @@ func (t *LLMTranslator) Translate(ctx context.Context, text, targetLang string) 
 		var apiErr chatResponse
 		_ = json.Unmarshal(data, &apiErr)
 		if apiErr.Error != nil {
-			return "", fmt.Errorf("translate api error (status %d): %s", resp.StatusCode, apiErr.Error.Message)
+			return "", fmt.Errorf(
+				"translate api error (status %d, url %s): %s",
+				resp.StatusCode, t.baseURL+"/chat/completions", apiErr.Error.Message,
+			)
 		}
-		return "", fmt.Errorf("translate api error (status %d): %s", resp.StatusCode, string(data))
+		return "", fmt.Errorf(
+			"translate api error (status %d, url %s): %s",
+			resp.StatusCode, t.baseURL+"/chat/completions", truncate(string(data), 500),
+		)
 	}
 
 	var parsed chatResponse
@@ -161,4 +167,13 @@ func maxTokensFor(text string) int {
 		return 4096
 	}
 	return n
+}
+
+// truncate limits a string to n runes for log/error readability.
+func truncate(s string, n int) string {
+	r := []rune(s)
+	if len(r) <= n {
+		return s
+	}
+	return string(r[:n]) + "..."
 }

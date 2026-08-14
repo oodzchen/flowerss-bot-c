@@ -33,6 +33,7 @@
 /setfeedtitle [sub id] [title] 设置订阅标题（省略title恢复RSS原标题）
 /setinterval [interval] [sub id] 设置订阅刷新频率（可设置多个sub id，以空格分割）
 /setlang [lang] 设置订阅推送翻译语言（如 /setlang zh；/setlang [sub id] [lang] 只设置单个订阅；/setlang off 关闭）
+/translate [lang] [text] 测试翻译服务是否可用（调试用，如 /translate zh Hello world）
 /activeall 开启所有订阅
 /pauseall 暂停所有订阅
 /import 导入 OPML 文件
@@ -67,3 +68,10 @@ translate:
 ```
 
 用户用 `/setlang <语言代码>` 开启翻译（如 `/setlang zh`），语言代码支持 `zh en ja ko fr de ru es` 等。
+
+翻译不生效时排查：
+
+1. 启动日志应出现 `init translate: provider=... model=... base_url=... api_key=true/false`，确认配置被正确读取；
+2. 推送时日志里 `translation enabled subscribers` 应大于 0，否则说明 `/setlang` 未生效；
+3. 用 `/translate zh Hello world` 直接测试翻译服务连通性，报错信息会包含 HTTP 状态码和接口返回内容（如 401 密钥错误、404 模型名错误）；
+4. 将 `log.level` 临时改为 `debug` 可看到每次翻译的完整过程日志（发起、命中缓存、成功/失败）。

@@ -392,6 +392,63 @@ func TestCore_SetSubscriptionTitle(t *testing.T) {
 	})
 }
 
+func TestCore_SetSubscriptionLang(t *testing.T) {
+	c, s := getTestCore(t)
+	defer s.Ctrl.Finish()
+	ctx := context.Background()
+	userID := int64(101)
+	sourceID := uint(1)
+
+	t.Run("subscription not exist", func(t *testing.T) {
+		s.Subscription.EXPECT().GetSubscription(ctx, userID, sourceID).Return(nil, storage.ErrRecordNotFound)
+		err := c.SetSubscriptionLang(ctx, userID, sourceID, "zh")
+		assert.Equal(t, ErrSubscriptionNotExist, err)
+	})
+
+	t.Run("update lang", func(t *testing.T) {
+		s.Subscription.EXPECT().GetSubscription(ctx, userID, sourceID).Return(
+			&model.Subscribe{UserID: userID, SourceID: sourceID}, nil,
+		)
+		s.Subscription.EXPECT().UpdateSubscriptionLang(ctx, userID, sourceID, "zh").Return(int64(1), nil)
+		err := c.SetSubscriptionLang(ctx, userID, sourceID, "zh")
+		assert.NoError(t, err)
+	})
+
+	t.Run("update lang error", func(t *testing.T) {
+		s.Subscription.EXPECT().GetSubscription(ctx, userID, sourceID).Return(
+			&model.Subscribe{UserID: userID, SourceID: sourceID}, nil,
+		)
+		s.Subscription.EXPECT().UpdateSubscriptionLang(ctx, userID, sourceID, "zh").Return(
+			int64(0), errors.New("db err"),
+		)
+		err := c.SetSubscriptionLang(ctx, userID, sourceID, "zh")
+		assert.Error(t, err)
+	})
+}
+
+func TestCore_SetSubscriptionLangForAll(t *testing.T) {
+	c, s := getTestCore(t)
+	defer s.Ctrl.Finish()
+	ctx := context.Background()
+	userID := int64(101)
+
+	t.Run("update all langs", func(t *testing.T) {
+		s.Subscription.EXPECT().UpdateSubscriptionsLang(ctx, userID, "ja").Return(int64(3), nil)
+		count, err := c.SetSubscriptionLangForAll(ctx, userID, "ja")
+		assert.NoError(t, err)
+		assert.Equal(t, 3, count)
+	})
+
+	t.Run("update all langs error", func(t *testing.T) {
+		s.Subscription.EXPECT().UpdateSubscriptionsLang(ctx, userID, "").Return(
+			int64(0), errors.New("db err"),
+		)
+		count, err := c.SetSubscriptionLangForAll(ctx, userID, "")
+		assert.Error(t, err)
+		assert.Equal(t, 0, count)
+	})
+}
+
 func TestCore_DisableSourceUpdate(t *testing.T) {
 	c, s := getTestCore(t)
 	defer s.Ctrl.Finish()

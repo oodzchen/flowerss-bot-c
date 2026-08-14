@@ -410,6 +410,36 @@ func (mr *MockSubscriptionMockRecorder) UpdateSubscription(ctx, userID, sourceID
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateSubscription", reflect.TypeOf((*MockSubscription)(nil).UpdateSubscription), ctx, userID, sourceID, newSubscription)
 }
 
+// UpdateSubscriptionLang mocks base method.
+func (m *MockSubscription) UpdateSubscriptionLang(ctx context.Context, userID int64, sourceID uint, lang string) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateSubscriptionLang", ctx, userID, sourceID, lang)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UpdateSubscriptionLang indicates an expected call of UpdateSubscriptionLang.
+func (mr *MockSubscriptionMockRecorder) UpdateSubscriptionLang(ctx, userID, sourceID, lang interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateSubscriptionLang", reflect.TypeOf((*MockSubscription)(nil).UpdateSubscriptionLang), ctx, userID, sourceID, lang)
+}
+
+// UpdateSubscriptionsLang mocks base method.
+func (m *MockSubscription) UpdateSubscriptionsLang(ctx context.Context, userID int64, lang string) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateSubscriptionsLang", ctx, userID, lang)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UpdateSubscriptionsLang indicates an expected call of UpdateSubscriptionsLang.
+func (mr *MockSubscriptionMockRecorder) UpdateSubscriptionsLang(ctx, userID, lang interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateSubscriptionsLang", reflect.TypeOf((*MockSubscription)(nil).UpdateSubscriptionsLang), ctx, userID, lang)
+}
+
 // UpsertSubscription mocks base method.
 func (m *MockSubscription) UpsertSubscription(ctx context.Context, userID int64, sourceID uint, newSubscription *model.Subscribe) error {
 	m.ctrl.T.Helper()

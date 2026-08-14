@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"github.com/indes/flowerss-bot/internal/log"
 	"github.com/indes/flowerss-bot/internal/model"
@@ -169,14 +170,44 @@ func (s *SubscriptionStorageImpl) UpdateSubscription(
 func (s *SubscriptionStorageImpl) UpsertSubscription(
 	ctx context.Context, userID int64, sourceID uint, newSubscription *model.Subscribe,
 ) error {
-	result := s.db.WithContext(ctx).Where(
-		"user_id = ? and source_id = ?", userID, sourceID,
-	).Save(newSubscription)
+	// 不依赖 GORM Save 的分支语义（不同版本对带主键结构体的 Save 行为不一致，
+	// 部分版本会退化成 INSERT 并触发主键冲突），这里显式使用 ON CONFLICT upsert，
+	// 跨 GORM 版本行为一致：行存在则全列更新，不存在则插入。
+	result := s.db.WithContext(ctx).Clauses(
+		clause.OnConflict{UpdateAll: true},
+	).Create(newSubscription)
 	if result.Error != nil {
 		return result.Error
 	}
 	log.Debugf(
-		"update %d row, userID %d sourceID %d new %#v", result.RowsAffected, userID, sourceID, newSubscription,
+		"upsert %d row, userID %d sourceID %d new %#v", result.RowsAffected, userID, sourceID, newSubscription,
 	)
 	return nil
+}
+
+// UpdateSubscriptionLang updates the translate language of one subscription.
+// A dedicated column update is used so an empty lang (disabling translation)
+// is persisted and the statement can never degrade into an INSERT.
+func (s *SubscriptionStorageImpl) UpdateSubscriptionLang(
+	ctx context.Context, userID int64, sourceID uint, lang string,
+) (int64, error) {
+	result := s.db.WithContext(ctx).Where(
+		"user_id = ? and source_id = ?", userID, sourceID,
+	).Update("translate_lang", lang)
+	if result.Error != nil {
+		return 0, result.Error
+	}
+	return result.RowsAffected, nil
+}
+
+// UpdateSubscriptionsLang updates the translate language of every subscription
+// owned by userID.
+func (s *SubscriptionStorageImpl) UpdateSubscriptionsLang(
+	ctx context.Context, userID int64, lang string,
+) (int64, error) {
+	result := s.db.WithContext(ctx).Where("user_id = ?", userID).Update("translate_lang", lang)
+	if result.Error != nil {
+		return 0, result.Error
+	}
+	return result.RowsAffected, nil
 }

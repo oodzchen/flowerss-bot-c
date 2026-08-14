@@ -73,6 +73,10 @@ type Subscription interface {
 	UpsertSubscription(
 		ctx context.Context, userID int64, sourceID uint, newSubscription *model.Subscribe,
 	) error
+	// UpdateSubscriptionLang 更新单个订阅的翻译语言（显式列更新，空值也会写入）
+	UpdateSubscriptionLang(ctx context.Context, userID int64, sourceID uint, lang string) (int64, error)
+	// UpdateSubscriptionsLang 批量更新某用户全部订阅的翻译语言，返回受影响行数
+	UpdateSubscriptionsLang(ctx context.Context, userID int64, lang string) (int64, error)
 }
 
 type Content interface {

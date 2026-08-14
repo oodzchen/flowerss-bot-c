@@ -160,10 +160,12 @@ func (b *Bot) BroadcastNews(source *model.Source, subs []*model.Subscribe, conte
 		for _, sub := range subs {
 			contentTitle, subPreviewText := content.Title, previewText
 			if sub.TranslateLang != "" {
+				langName := translate.LanguageName(sub.TranslateLang)
 				if b.translator == nil {
 					zap.S().Warnw(
 						"translation requested but translator not configured, pushing original",
-						"user id", sub.UserID, "source id", sub.SourceID, "lang", sub.TranslateLang,
+						"user id", sub.UserID, "source id", sub.SourceID,
+						"lang", sub.TranslateLang, "lang_name", langName,
 					)
 				} else {
 					zap.S().Debugw(
@@ -172,6 +174,7 @@ func (b *Bot) BroadcastNews(source *model.Source, subs []*model.Subscribe, conte
 						"source id", sub.SourceID,
 						"hash", content.HashID,
 						"lang", sub.TranslateLang,
+						"lang_name", langName,
 					)
 					contentTitle, subPreviewText = b.translateContent(
 						content.HashID, sub.TranslateLang, content.Title, previewText,
@@ -254,8 +257,9 @@ func (b *Bot) BroadcastNews(source *model.Source, subs []*model.Subscribe, conte
 // many subscribers only triggers one translation per pair.
 func (b *Bot) translateContent(hashID, lang, title, previewText string) (string, string) {
 	key := hashID + "|" + lang
+	langName := translate.LanguageName(lang)
 	if cached, ok := b.transCache.Get(key); ok {
-		zap.S().Debugw("translate cache hit", "hash", hashID, "lang", lang)
+		zap.S().Debugw("translate cache hit", "hash", hashID, "lang", lang, "lang_name", langName)
 		return cached.Title, cached.Preview
 	}
 
@@ -264,23 +268,28 @@ func (b *Bot) translateContent(hashID, lang, title, previewText string) (string,
 		"translate start",
 		"hash", hashID,
 		"lang", lang,
+		"lang_name", langName,
 		"title_len", len([]rune(title)),
 		"preview_len", len([]rune(previewText)),
 	)
+
+	hasError := false
 
 	translatedTitle := title
 	if strings.TrimSpace(title) != "" {
 		translated, err := b.translator.Translate(ctx, title, lang)
 		if err != nil {
+			hasError = true
 			zap.S().Warnw(
 				"translate title failed, fallback to original",
-				"error", err.Error(), "lang", lang, "hash", hashID,
+				"error", err.Error(), "lang", lang, "lang_name", langName, "hash", hashID,
+				"title", truncate(title, 120),
 			)
 		} else {
 			translatedTitle = translated
 			zap.S().Debugw(
 				"translate title success",
-				"hash", hashID, "lang", lang,
+				"hash", hashID, "lang", lang, "lang_name", langName,
 				"from", truncate(title, 120), "to", truncate(translated, 120),
 			)
 		}
@@ -290,21 +299,25 @@ func (b *Bot) translateContent(hashID, lang, title, previewText string) (string,
 	if strings.TrimSpace(previewText) != "" {
 		translated, err := b.translator.Translate(ctx, previewText, lang)
 		if err != nil {
+			hasError = true
 			zap.S().Warnw(
 				"translate preview failed, fallback to original",
-				"error", err.Error(), "lang", lang, "hash", hashID,
+				"error", err.Error(), "lang", lang, "lang_name", langName, "hash", hashID,
+				"preview_len", len([]rune(previewText)),
 			)
 		} else {
 			translatedPreview = translated
 			zap.S().Debugw(
 				"translate preview success",
-				"hash", hashID, "lang", lang,
+				"hash", hashID, "lang", lang, "lang_name", langName,
 				"from_len", len([]rune(previewText)), "to_len", len([]rune(translated)),
 			)
 		}
 	}
 
-	b.transCache.Put(key, translate.CachedTranslation{Title: translatedTitle, Preview: translatedPreview})
+	if !hasError {
+		b.transCache.Put(key, translate.CachedTranslation{Title: translatedTitle, Preview: translatedPreview})
+	}
 	return translatedTitle, translatedPreview
 }
 

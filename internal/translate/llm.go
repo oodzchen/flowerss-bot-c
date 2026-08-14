@@ -118,7 +118,7 @@ func (t *LLMTranslator) Translate(ctx context.Context, text, targetLang string) 
 
 	resp, err := t.httpClient.Client().Do(req)
 	if err != nil {
-		return "", fmt.Errorf("translate request failed (%s): %w", t.baseURL+"/chat/completions", err)
+		return "", fmt.Errorf("translate request for target lang %s (%s) failed (%s): %w", targetLang, LanguageName(targetLang), t.baseURL+"/chat/completions", err)
 	}
 	defer resp.Body.Close()
 
@@ -131,13 +131,13 @@ func (t *LLMTranslator) Translate(ctx context.Context, text, targetLang string) 
 		_ = json.Unmarshal(data, &apiErr)
 		if apiErr.Error != nil {
 			return "", fmt.Errorf(
-				"translate api error (status %d, url %s): %s",
-				resp.StatusCode, t.baseURL+"/chat/completions", apiErr.Error.Message,
+				"translate api error (target lang %s [%s], status %d, url %s): %s",
+				targetLang, LanguageName(targetLang), resp.StatusCode, t.baseURL+"/chat/completions", apiErr.Error.Message,
 			)
 		}
 		return "", fmt.Errorf(
-			"translate api error (status %d, url %s): %s",
-			resp.StatusCode, t.baseURL+"/chat/completions", truncate(string(data), 500),
+			"translate api error (target lang %s [%s], status %d, url %s): %s",
+			targetLang, LanguageName(targetLang), resp.StatusCode, t.baseURL+"/chat/completions", truncate(string(data), 500),
 		)
 	}
 
@@ -146,11 +146,11 @@ func (t *LLMTranslator) Translate(ctx context.Context, text, targetLang string) 
 		return "", err
 	}
 	if len(parsed.Choices) == 0 {
-		return "", fmt.Errorf("translate api returned no choices")
+		return "", fmt.Errorf("translate api returned no choices for target lang %s (%s)", targetLang, LanguageName(targetLang))
 	}
 	out := strings.TrimSpace(parsed.Choices[0].Message.Content)
 	if out == "" {
-		return "", fmt.Errorf("translate api returned empty translation")
+		return "", fmt.Errorf("translate api returned empty translation for target lang %s (%s)", targetLang, LanguageName(targetLang))
 	}
 	return out, nil
 }

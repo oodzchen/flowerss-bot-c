@@ -57,10 +57,10 @@ func (h *Translate) Handle(ctx tb.Context) error {
 
 	translated, err := h.translator.Translate(ctx2, text, lang)
 	if err != nil {
-		log.Errorf("translate test failed, lang %s: %v", lang, err)
+		log.Errorf("translate test failed, lang %s (%s): %v", lang, translate.LanguageName(lang), err)
 		return ctx.Reply(fmt.Sprintf("翻译失败（%s → %s）：\n%v", text, translate.LanguageName(lang), err))
 	}
-	log.Infof("translate test ok, lang %s: %q -> %q", lang, text, translated)
+	log.Infof("translate test ok, lang %s (%s): %q -> %q", lang, translate.LanguageName(lang), text, translated)
 	return ctx.Reply(fmt.Sprintf("翻译结果（%s → %s）：\n%s", text, translate.LanguageName(lang), translated))
 }
 

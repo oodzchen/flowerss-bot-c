@@ -133,8 +133,66 @@ func (b *Bot) SourceUpdate(
 	b.BroadcastNews(source, subscribes, newContents)
 }
 
+func (b *Bot) SourceContentsEdit(
+	source *model.Source, editedContents []*model.Content, subscribes []*model.Subscribe,
+) {
+	b.BroadcastEdit(source, subscribes, editedContents)
+}
+
 func (b *Bot) SourceUpdateError(source *model.Source) {
 	b.BroadcastSourceError(source)
+}
+
+// renderContentMessage formats a content item for a specific subscriber
+func (b *Bot) renderContentMessage(source *model.Source, sub *model.Subscribe, content *model.Content) (string, error) {
+	previewText := preview.TrimDescription(content.Description, config.PreviewText)
+	contentTitle, subPreviewText := content.Title, previewText
+	if sub.TranslateLang != "" {
+		langName := translate.LanguageName(sub.TranslateLang)
+		if b.translator == nil {
+			zap.S().Warnw(
+				"translation requested but translator not configured, pushing original",
+				"user id", sub.UserID, "source id", sub.SourceID,
+				"lang", sub.TranslateLang, "lang_name", langName,
+			)
+		} else {
+			zap.S().Debugw(
+				"translating content for subscriber",
+				"user id", sub.UserID,
+				"source id", sub.SourceID,
+				"hash", content.HashID,
+				"lang", sub.TranslateLang,
+				"lang_name", langName,
+			)
+			contentTitle, subPreviewText = b.translateContent(
+				content.HashID, sub.TranslateLang, content.Title, previewText,
+			)
+		}
+	}
+
+	publishedAt := ""
+	if content.PublishedAt != nil {
+		pubTime := *content.PublishedAt
+		if sub.Timezone != "" {
+			if loc, err := timezone.ParseLocation(sub.Timezone); err == nil && loc != nil {
+				pubTime = pubTime.In(loc)
+			}
+		}
+		publishedAt = pubTime.Format("2006-01-02 15:04:05 -07:00")
+	}
+
+	tpldata := &config.TplData{
+		SourceTitle:     sub.DisplayTitle(source.Title),
+		ContentTitle:    contentTitle,
+		RawLink:         content.RawLink,
+		PublishedAt:     publishedAt,
+		PreviewText:     subPreviewText,
+		TelegraphURL:    content.TelegraphURL,
+		Tags:            sub.Tag,
+		EnableTelegraph: sub.EnableTelegraph == 1 && content.TelegraphURL != "",
+	}
+
+	return tpldata.Render(config.MessageMode)
 }
 
 // BroadcastNews send new contents message to subscriber
@@ -155,53 +213,14 @@ func (b *Bot) BroadcastNews(source *model.Source, subs []*model.Subscribe, conte
 	)
 
 	for _, content := range contents {
-		previewText := preview.TrimDescription(content.Description, config.PreviewText)
-
 		for _, sub := range subs {
-			contentTitle, subPreviewText := content.Title, previewText
-			if sub.TranslateLang != "" {
-				langName := translate.LanguageName(sub.TranslateLang)
-				if b.translator == nil {
-					zap.S().Warnw(
-						"translation requested but translator not configured, pushing original",
-						"user id", sub.UserID, "source id", sub.SourceID,
-						"lang", sub.TranslateLang, "lang_name", langName,
-					)
-				} else {
-					zap.S().Debugw(
-						"translating content for subscriber",
-						"user id", sub.UserID,
-						"source id", sub.SourceID,
-						"hash", content.HashID,
-						"lang", sub.TranslateLang,
-						"lang_name", langName,
-					)
-					contentTitle, subPreviewText = b.translateContent(
-						content.HashID, sub.TranslateLang, content.Title, previewText,
-					)
-				}
-			}
-
-			publishedAt := ""
-			if content.PublishedAt != nil {
-				pubTime := *content.PublishedAt
-				if sub.Timezone != "" {
-					if loc, err := timezone.ParseLocation(sub.Timezone); err == nil && loc != nil {
-						pubTime = pubTime.In(loc)
-					}
-				}
-				publishedAt = pubTime.Format("2006-01-02 15:04:05 -07:00")
-			}
-
-			tpldata := &config.TplData{
-				SourceTitle:     sub.DisplayTitle(source.Title),
-				ContentTitle:    contentTitle,
-				RawLink:         content.RawLink,
-				PublishedAt:     publishedAt,
-				PreviewText:     subPreviewText,
-				TelegraphURL:    content.TelegraphURL,
-				Tags:            sub.Tag,
-				EnableTelegraph: sub.EnableTelegraph == 1 && content.TelegraphURL != "",
+			msg, err := b.renderContentMessage(source, sub, content)
+			if err != nil {
+				zap.S().Errorw(
+					"broadcast news error, renderContentMessage err",
+					"error", err.Error(),
+				)
+				continue
 			}
 
 			u := &tb.User{
@@ -212,16 +231,8 @@ func (b *Bot) BroadcastNews(source *model.Source, subs []*model.Subscribe, conte
 				ParseMode:             config.MessageMode,
 				DisableNotification:   sub.EnableNotification != 1,
 			}
-			msg, err := tpldata.Render(config.MessageMode)
+			sentMsg, err := b.tb.Send(u, msg, o)
 			if err != nil {
-				zap.S().Errorw(
-					"broadcast news error, tpldata.Render err",
-					"error", err.Error(),
-				)
-				return
-			}
-			if _, err := b.tb.Send(u, msg, o); err != nil {
-
 				if strings.Contains(err.Error(), "Forbidden") {
 					zap.S().Errorw(
 						"broadcast news error, bot stopped by user",
@@ -246,6 +257,101 @@ func (b *Bot) BroadcastNews(source *model.Source, subs []*model.Subscribe, conte
 						"error", err.Error(),
 					)
 				}
+			} else if sentMsg != nil {
+				if err := b.core.SaveContentMessage(context.Background(), content.HashID, sub.UserID, sentMsg.ID); err != nil {
+					zap.S().Errorw(
+						"save content message failed",
+						"hash", content.HashID,
+						"user id", sub.UserID,
+						"message id", sentMsg.ID,
+						"error", err.Error(),
+					)
+				}
+			}
+		}
+	}
+}
+
+// BroadcastEdit edits previously sent messages for subscribers when content is updated
+func (b *Bot) BroadcastEdit(source *model.Source, subs []*model.Subscribe, contents []*model.Content) {
+	zap.S().Infow(
+		"broadcast edit",
+		"fetcher id", source.ID,
+		"fetcher title", source.Title,
+		"subscriber count", len(subs),
+		"edited contents", len(contents),
+	)
+
+	for _, content := range contents {
+		b.transCache.DeleteByHash(content.HashID)
+
+		for _, sub := range subs {
+			contentMsg, err := b.core.GetContentMessage(context.Background(), content.HashID, sub.UserID)
+			if err != nil || contentMsg == nil || contentMsg.MessageID == 0 {
+				continue
+			}
+
+			msg, err := b.renderContentMessage(source, sub, content)
+			if err != nil {
+				zap.S().Errorw(
+					"broadcast edit error, renderContentMessage err",
+					"error", err.Error(),
+				)
+				continue
+			}
+
+			targetMsg := &tb.Message{
+				ID:   contentMsg.MessageID,
+				Chat: &tb.Chat{ID: sub.UserID},
+			}
+			o := &tb.SendOptions{
+				DisableWebPagePreview: config.DisableWebPagePreview,
+				ParseMode:             config.MessageMode,
+			}
+
+			if _, err := b.tb.Edit(targetMsg, msg, o); err != nil {
+				if strings.Contains(err.Error(), "message is not modified") {
+					continue
+				}
+
+				if strings.Contains(err.Error(), "Forbidden") {
+					zap.S().Errorw(
+						"broadcast edit error, bot stopped by user",
+						"error", err.Error(),
+						"user id", sub.UserID,
+						"source id", sub.SourceID,
+						"title", source.Title,
+						"link", source.Link,
+					)
+					b.core.Unsubscribe(context.Background(), sub.UserID, sub.SourceID)
+					continue
+				}
+
+				if strings.Contains(err.Error(), "parse entities") {
+					zap.S().Errorw(
+						"broadcast edit error, markdown error",
+						"markdown msg", msg,
+						"error", err.Error(),
+					)
+					continue
+				}
+
+				zap.S().Warnw(
+					"broadcast edit failed",
+					"user id", sub.UserID,
+					"source id", sub.SourceID,
+					"message id", contentMsg.MessageID,
+					"hash", content.HashID,
+					"error", err.Error(),
+				)
+			} else {
+				zap.S().Debugw(
+					"broadcast edit success",
+					"user id", sub.UserID,
+					"source id", sub.SourceID,
+					"message id", contentMsg.MessageID,
+					"hash", content.HashID,
+				)
 			}
 		}
 	}

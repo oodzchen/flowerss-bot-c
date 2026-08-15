@@ -564,3 +564,104 @@ func (mr *MockContentMockRecorder) Init(ctx interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Init", reflect.TypeOf((*MockContent)(nil).Init), ctx)
 }
+
+// GetContent mocks base method.
+func (m *MockContent) GetContent(ctx context.Context, hashID string) (*model.Content, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetContent", ctx, hashID)
+	ret0, _ := ret[0].(*model.Content)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetContent indicates an expected call of GetContent.
+func (mr *MockContentMockRecorder) GetContent(ctx, hashID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetContent", reflect.TypeOf((*MockContent)(nil).GetContent), ctx, hashID)
+}
+
+// UpdateContent mocks base method.
+func (m *MockContent) UpdateContent(ctx context.Context, hashID string, newContent *model.Content) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateContent", ctx, hashID, newContent)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateContent indicates an expected call of UpdateContent.
+func (mr *MockContentMockRecorder) UpdateContent(ctx, hashID, newContent interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateContent", reflect.TypeOf((*MockContent)(nil).UpdateContent), ctx, hashID, newContent)
+}
+
+// SaveContentMessage mocks base method.
+func (m *MockContent) SaveContentMessage(ctx context.Context, msg *model.ContentMessage) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SaveContentMessage", ctx, msg)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SaveContentMessage indicates an expected call of SaveContentMessage.
+func (mr *MockContentMockRecorder) SaveContentMessage(ctx, msg interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SaveContentMessage", reflect.TypeOf((*MockContent)(nil).SaveContentMessage), ctx, msg)
+}
+
+// GetContentMessage mocks base method.
+func (m *MockContent) GetContentMessage(ctx context.Context, hashID string, userID int64) (*model.ContentMessage, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetContentMessage", ctx, hashID, userID)
+	ret0, _ := ret[0].(*model.ContentMessage)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetContentMessage indicates an expected call of GetContentMessage.
+func (mr *MockContentMockRecorder) GetContentMessage(ctx, hashID, userID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetContentMessage", reflect.TypeOf((*MockContent)(nil).GetContentMessage), ctx, hashID, userID)
+}
+
+// GetContentMessages mocks base method.
+func (m *MockContent) GetContentMessages(ctx context.Context, hashID string) ([]*model.ContentMessage, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetContentMessages", ctx, hashID)
+	ret0, _ := ret[0].([]*model.ContentMessage)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetContentMessages indicates an expected call of GetContentMessages.
+func (mr *MockContentMockRecorder) GetContentMessages(ctx, hashID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetContentMessages", reflect.TypeOf((*MockContent)(nil).GetContentMessages), ctx, hashID)
+}
+
+// DeleteContentMessagesByHashID mocks base method.
+func (m *MockContent) DeleteContentMessagesByHashID(ctx context.Context, hashID string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteContentMessagesByHashID", ctx, hashID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteContentMessagesByHashID indicates an expected call of DeleteContentMessagesByHashID.
+func (mr *MockContentMockRecorder) DeleteContentMessagesByHashID(ctx, hashID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteContentMessagesByHashID", reflect.TypeOf((*MockContent)(nil).DeleteContentMessagesByHashID), ctx, hashID)
+}
+
+// DeleteContentMessagesBySourceID mocks base method.
+func (m *MockContent) DeleteContentMessagesBySourceID(ctx context.Context, sourceID uint) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteContentMessagesBySourceID", ctx, sourceID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteContentMessagesBySourceID indicates an expected call of DeleteContentMessagesBySourceID.
+func (mr *MockContentMockRecorder) DeleteContentMessagesBySourceID(ctx, sourceID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteContentMessagesBySourceID", reflect.TypeOf((*MockContent)(nil).DeleteContentMessagesBySourceID), ctx, sourceID)
+}

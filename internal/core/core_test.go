@@ -714,3 +714,68 @@ func TestCore_ToggleSubscriptionTelegraph(t *testing.T) {
 		},
 	)
 }
+
+func TestCore_ContentAndMessages(t *testing.T) {
+	c, s := getTestCore(t)
+	defer s.Ctrl.Finish()
+	ctx := context.Background()
+	hashID := "hash123"
+	userID := int64(1001)
+	msgID := 888
+
+	t.Run("get content success", func(t *testing.T) {
+		expected := &model.Content{HashID: hashID, Title: "Title"}
+		s.Content.EXPECT().GetContent(ctx, hashID).Return(expected, nil)
+		got, err := c.GetContent(ctx, hashID)
+		assert.NoError(t, err)
+		assert.Equal(t, expected, got)
+	})
+
+	t.Run("get content not found", func(t *testing.T) {
+		s.Content.EXPECT().GetContent(ctx, hashID).Return(nil, storage.ErrRecordNotFound)
+		got, err := c.GetContent(ctx, hashID)
+		assert.Equal(t, ErrContentNotExist, err)
+		assert.Nil(t, got)
+	})
+
+	t.Run("update content", func(t *testing.T) {
+		content := &model.Content{HashID: hashID, Title: "New Title"}
+		s.Content.EXPECT().UpdateContent(ctx, hashID, content).Return(nil)
+		err := c.UpdateContent(ctx, hashID, content)
+		assert.NoError(t, err)
+	})
+
+	t.Run("save and get content message", func(t *testing.T) {
+		s.Content.EXPECT().SaveContentMessage(ctx, gomock.Any()).DoAndReturn(
+			func(_ context.Context, msg *model.ContentMessage) error {
+				assert.Equal(t, hashID, msg.HashID)
+				assert.Equal(t, userID, msg.UserID)
+				assert.Equal(t, msgID, msg.MessageID)
+				return nil
+			},
+		)
+		err := c.SaveContentMessage(ctx, hashID, userID, msgID)
+		assert.NoError(t, err)
+
+		s.Content.EXPECT().GetContentMessage(ctx, hashID, userID).Return(&model.ContentMessage{
+			HashID:    hashID,
+			UserID:    userID,
+			MessageID: msgID,
+		}, nil)
+		msg, err := c.GetContentMessage(ctx, hashID, userID)
+		assert.NoError(t, err)
+		assert.Equal(t, msgID, msg.MessageID)
+	})
+
+	t.Run("get content messages", func(t *testing.T) {
+		expectedMsgs := []*model.ContentMessage{
+			{HashID: hashID, UserID: 1001, MessageID: 1},
+			{HashID: hashID, UserID: 1002, MessageID: 2},
+		}
+		s.Content.EXPECT().GetContentMessages(ctx, hashID).Return(expectedMsgs, nil)
+		msgs, err := c.GetContentMessages(ctx, hashID)
+		assert.NoError(t, err)
+		assert.Equal(t, 2, len(msgs))
+	})
+}
+

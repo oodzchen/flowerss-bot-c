@@ -183,3 +183,22 @@ func TestCache(t *testing.T) {
 	_, ok = c.Get("a")
 	assert.False(t, ok)
 }
+
+func TestCache_DeleteByHash(t *testing.T) {
+	c := NewCache(10)
+	c.Put("hash1|zh", CachedTranslation{Title: "t1_zh", Preview: "p1_zh"})
+	c.Put("hash1|en", CachedTranslation{Title: "t1_en", Preview: "p1_en"})
+	c.Put("hash2|zh", CachedTranslation{Title: "t2_zh", Preview: "p2_zh"})
+
+	c.DeleteByHash("hash1")
+
+	_, ok1 := c.Get("hash1|zh")
+	assert.False(t, ok1)
+	_, ok2 := c.Get("hash1|en")
+	assert.False(t, ok2)
+
+	v, ok3 := c.Get("hash2|zh")
+	assert.True(t, ok3)
+	assert.Equal(t, "t2_zh", v.Title)
+}
+

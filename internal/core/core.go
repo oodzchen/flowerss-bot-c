@@ -530,3 +530,46 @@ func (c *Core) ContentHashIDExist(
 	}
 	return result, nil
 }
+
+func (c *Core) GetContent(
+	ctx context.Context, hashID string,
+) (*model.Content, error) {
+	content, err := c.contentStorage.GetContent(ctx, hashID)
+	if err != nil {
+		if errors.Is(err, storage.ErrRecordNotFound) {
+			return nil, ErrContentNotExist
+		}
+		return nil, err
+	}
+	return content, nil
+}
+
+func (c *Core) UpdateContent(
+	ctx context.Context, hashID string, newContent *model.Content,
+) error {
+	return c.contentStorage.UpdateContent(ctx, hashID, newContent)
+}
+
+func (c *Core) SaveContentMessage(
+	ctx context.Context, hashID string, userID int64, messageID int,
+) error {
+	msg := &model.ContentMessage{
+		HashID:    hashID,
+		UserID:    userID,
+		MessageID: messageID,
+	}
+	return c.contentStorage.SaveContentMessage(ctx, msg)
+}
+
+func (c *Core) GetContentMessage(
+	ctx context.Context, hashID string, userID int64,
+) (*model.ContentMessage, error) {
+	return c.contentStorage.GetContentMessage(ctx, hashID, userID)
+}
+
+func (c *Core) GetContentMessages(
+	ctx context.Context, hashID string,
+) ([]*model.ContentMessage, error) {
+	return c.contentStorage.GetContentMessages(ctx, hashID)
+}
+

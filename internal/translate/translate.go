@@ -152,3 +152,15 @@ func (c *Cache) Put(key string, v CachedTranslation) {
 	}
 	c.items[key] = v
 }
+
+// DeleteByHash removes all cache entries associated with the given hashID prefix.
+func (c *Cache) DeleteByHash(hashID string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	prefix := hashID + "|"
+	for k := range c.items {
+		if strings.HasPrefix(k, prefix) {
+			delete(c.items, k)
+		}
+	}
+}

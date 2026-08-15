@@ -91,4 +91,18 @@ type Content interface {
 	DeleteSourceContents(ctx context.Context, sourceID uint) (int64, error)
 	// HashIDExist hash id 对应的文章是否已存在
 	HashIDExist(ctx context.Context, hashID string) (bool, error)
+	// GetContent 获取指定 hashID 的文章
+	GetContent(ctx context.Context, hashID string) (*model.Content, error)
+	// UpdateContent 更新文章内容
+	UpdateContent(ctx context.Context, hashID string, newContent *model.Content) error
+	// SaveContentMessage 保存推送消息的 Telegram MessageID 记录
+	SaveContentMessage(ctx context.Context, msg *model.ContentMessage) error
+	// GetContentMessage 获取特定用户推送消息的 Telegram MessageID
+	GetContentMessage(ctx context.Context, hashID string, userID int64) (*model.ContentMessage, error)
+	// GetContentMessages 获取文章的所有推送消息记录
+	GetContentMessages(ctx context.Context, hashID string) ([]*model.ContentMessage, error)
+	// DeleteContentMessagesByHashID 删除文章的推送消息记录
+	DeleteContentMessagesByHashID(ctx context.Context, hashID string) error
+	// DeleteContentMessagesBySourceID 删除订阅源所有文章的推送消息记录
+	DeleteContentMessagesBySourceID(ctx context.Context, sourceID uint) error
 }

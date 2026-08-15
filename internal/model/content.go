@@ -9,7 +9,7 @@ type Content struct {
 	RawID        string
 	RawLink      string
 	Title        string
-	Description  string `gorm:"-"` //ignore to db
+	Description  string `gorm:"type:text"`
 	TelegraphURL string
 	PublishedAt  *time.Time
 	EditTime

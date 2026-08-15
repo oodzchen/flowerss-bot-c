@@ -264,7 +264,17 @@ func (b *Bot) BroadcastNews(source *model.Source, subs []*model.Subscribe, conte
 						"hash", content.HashID,
 						"user id", sub.UserID,
 						"message id", sentMsg.ID,
+						"title", content.Title,
 						"error", err.Error(),
+					)
+				} else {
+					zap.S().Infow(
+						"sent news message and recorded message ID",
+						"user id", sub.UserID,
+						"source id", sub.SourceID,
+						"message id", sentMsg.ID,
+						"hash", content.HashID,
+						"title", content.Title,
 					)
 				}
 			}
@@ -288,6 +298,13 @@ func (b *Bot) BroadcastEdit(source *model.Source, subs []*model.Subscribe, conte
 		for _, sub := range subs {
 			contentMsg, err := b.core.GetContentMessage(context.Background(), content.HashID, sub.UserID)
 			if err != nil || contentMsg == nil || contentMsg.MessageID == 0 {
+				zap.S().Infow(
+					"skip message edit: no prior message ID recorded for subscriber",
+					"user id", sub.UserID,
+					"source id", sub.SourceID,
+					"hash", content.HashID,
+					"title", content.Title,
+				)
 				continue
 			}
 
@@ -311,6 +328,14 @@ func (b *Bot) BroadcastEdit(source *model.Source, subs []*model.Subscribe, conte
 
 			if _, err := b.tb.Edit(targetMsg, msg, o); err != nil {
 				if strings.Contains(err.Error(), "message is not modified") {
+					zap.S().Infow(
+						"telegram message already up-to-date (not modified)",
+						"user id", sub.UserID,
+						"source id", sub.SourceID,
+						"message id", contentMsg.MessageID,
+						"hash", content.HashID,
+						"title", content.Title,
+					)
 					continue
 				}
 
@@ -337,20 +362,22 @@ func (b *Bot) BroadcastEdit(source *model.Source, subs []*model.Subscribe, conte
 				}
 
 				zap.S().Warnw(
-					"broadcast edit failed",
+					"telegram message edit failed",
 					"user id", sub.UserID,
 					"source id", sub.SourceID,
 					"message id", contentMsg.MessageID,
 					"hash", content.HashID,
+					"title", content.Title,
 					"error", err.Error(),
 				)
 			} else {
-				zap.S().Debugw(
-					"broadcast edit success",
+				zap.S().Infow(
+					"telegram message edited successfully",
 					"user id", sub.UserID,
 					"source id", sub.SourceID,
 					"message id", contentMsg.MessageID,
 					"hash", content.HashID,
+					"title", content.Title,
 				)
 			}
 		}

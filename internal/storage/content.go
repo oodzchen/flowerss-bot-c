@@ -2,7 +2,6 @@ package storage
 
 import (
 	"context"
-	"errors"
 
 	"gorm.io/gorm"
 
@@ -48,20 +47,20 @@ func (s *ContentStorageImpl) HashIDExist(ctx context.Context, hashID string) (bo
 }
 
 func (s *ContentStorageImpl) GetContent(ctx context.Context, hashID string) (*model.Content, error) {
-	var content model.Content
-	result := s.db.WithContext(ctx).Where("hash_id = ?", hashID).First(&content)
+	var contents []model.Content
+	result := s.db.WithContext(ctx).Where("hash_id = ?", hashID).Limit(1).Find(&contents)
 	if result.Error != nil {
-		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, ErrRecordNotFound
-		}
 		return nil, result.Error
 	}
-	return &content, nil
+	if len(contents) == 0 {
+		return nil, ErrRecordNotFound
+	}
+	return &contents[0], nil
 }
 
 func (s *ContentStorageImpl) UpdateContent(ctx context.Context, hashID string, newContent *model.Content) error {
 	newContent.HashID = hashID
-	result := s.db.WithContext(ctx).Where("hash_id = ?", hashID).Save(newContent)
+	result := s.db.WithContext(ctx).Save(newContent)
 	if result.Error != nil {
 		return result.Error
 	}
@@ -77,15 +76,15 @@ func (s *ContentStorageImpl) SaveContentMessage(ctx context.Context, msg *model.
 }
 
 func (s *ContentStorageImpl) GetContentMessage(ctx context.Context, hashID string, userID int64) (*model.ContentMessage, error) {
-	var msg model.ContentMessage
-	result := s.db.WithContext(ctx).Where("hash_id = ? AND user_id = ?", hashID, userID).First(&msg)
+	var msgs []model.ContentMessage
+	result := s.db.WithContext(ctx).Where("hash_id = ? AND user_id = ?", hashID, userID).Limit(1).Find(&msgs)
 	if result.Error != nil {
-		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, ErrRecordNotFound
-		}
 		return nil, result.Error
 	}
-	return &msg, nil
+	if len(msgs) == 0 {
+		return nil, ErrRecordNotFound
+	}
+	return &msgs[0], nil
 }
 
 func (s *ContentStorageImpl) GetContentMessages(ctx context.Context, hashID string) ([]*model.ContentMessage, error) {

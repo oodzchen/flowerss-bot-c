@@ -293,7 +293,11 @@ func (b *Bot) BroadcastEdit(source *model.Source, subs []*model.Subscribe, conte
 	)
 
 	for _, content := range contents {
-		b.transCache.DeleteByHash(content.HashID)
+		// NOTE: We intentionally do NOT delete translation cache here.
+		// Our translation cache checks source text fingerprints (SrcTitleHash and SrcPreviewHash).
+		// If only metadata (published time, link, telegraph url) was updated, the translation is safely
+		// reused with 0 token consumption. If the text truly changed, translateContent detects it and
+		// translates only the modified parts.
 
 		for _, sub := range subs {
 			contentMsg, err := b.core.GetContentMessage(context.Background(), content.HashID, sub.UserID)
@@ -386,13 +390,19 @@ func (b *Bot) BroadcastEdit(source *model.Source, subs []*model.Subscribe, conte
 
 // translateContent returns the translated title and preview of one content in
 // one target language, falling back to the original text when translation
-// fails. Results are cached per (content hash, language) so content pushed to
-// many subscribers only triggers one translation per pair.
+// fails. Results are cached per (content hash, language) and validated against
+// source text fingerprints so that content pushed to many subscribers or checked
+// during polling updates triggers minimal LLM token consumption.
 func (b *Bot) translateContent(hashID, lang, title, previewText string) (string, string) {
 	key := hashID + "|" + lang
 	langName := translate.LanguageName(lang)
-	if cached, ok := b.transCache.Get(key); ok {
-		zap.S().Debugw("translate cache hit", "hash", hashID, "lang", lang, "lang_name", langName)
+
+	titleHash := translate.HashText(title)
+	previewHash := translate.HashText(previewText)
+
+	cached, hasCache := b.transCache.Get(key)
+	if hasCache && cached.SrcTitleHash == titleHash && cached.SrcPreviewHash == previewHash {
+		zap.S().Debugw("translate cache hit (full)", "hash", hashID, "lang", lang, "lang_name", langName)
 		return cached.Title, cached.Preview
 	}
 
@@ -406,50 +416,65 @@ func (b *Bot) translateContent(hashID, lang, title, previewText string) (string,
 		"preview_len", len([]rune(previewText)),
 	)
 
+	var translatedTitle, translatedPreview string
 	hasError := false
 
-	translatedTitle := title
-	if strings.TrimSpace(title) != "" {
-		translated, err := b.translator.Translate(ctx, title, lang)
-		if err != nil {
-			hasError = true
-			zap.S().Warnw(
-				"translate title failed, fallback to original",
-				"error", err.Error(), "lang", lang, "lang_name", langName, "hash", hashID,
-				"title", truncate(title, 120),
-			)
-		} else {
-			translatedTitle = translated
-			zap.S().Debugw(
-				"translate title success",
-				"hash", hashID, "lang", lang, "lang_name", langName,
-				"from", truncate(title, 120), "to", truncate(translated, 120),
-			)
-		}
+	titleUnchanged := hasCache && cached.SrcTitleHash == titleHash && cached.Title != ""
+	previewUnchanged := hasCache && cached.SrcPreviewHash == previewHash && cached.Preview != ""
+
+	if titleUnchanged && previewUnchanged {
+		return cached.Title, cached.Preview
 	}
 
-	translatedPreview := previewText
-	if strings.TrimSpace(previewText) != "" {
-		translated, err := b.translator.Translate(ctx, previewText, lang)
+	if titleUnchanged {
+		translatedTitle = cached.Title
+		if strings.TrimSpace(previewText) != "" {
+			tPreview, err := b.translator.Translate(ctx, previewText, lang)
+			if err != nil {
+				hasError = true
+				zap.S().Warnw("translate preview failed, fallback to original", "error", err.Error(), "lang", lang, "hash", hashID)
+				translatedPreview = previewText
+			} else {
+				translatedPreview = tPreview
+			}
+		} else {
+			translatedPreview = previewText
+		}
+	} else if previewUnchanged {
+		translatedPreview = cached.Preview
+		if strings.TrimSpace(title) != "" {
+			tTitle, err := b.translator.Translate(ctx, title, lang)
+			if err != nil {
+				hasError = true
+				zap.S().Warnw("translate title failed, fallback to original", "error", err.Error(), "lang", lang, "hash", hashID)
+				translatedTitle = title
+			} else {
+				translatedTitle = tTitle
+			}
+		} else {
+			translatedTitle = title
+		}
+	} else {
+		// Both changed or initial fetch -> combined translation in a single request
+		tTitle, tPreview, err := b.translator.TranslateContent(ctx, title, previewText, lang)
 		if err != nil {
 			hasError = true
-			zap.S().Warnw(
-				"translate preview failed, fallback to original",
-				"error", err.Error(), "lang", lang, "lang_name", langName, "hash", hashID,
-				"preview_len", len([]rune(previewText)),
-			)
+			zap.S().Warnw("translate content failed, fallback to original", "error", err.Error(), "lang", lang, "hash", hashID)
+			translatedTitle = title
+			translatedPreview = previewText
 		} else {
-			translatedPreview = translated
-			zap.S().Debugw(
-				"translate preview success",
-				"hash", hashID, "lang", lang, "lang_name", langName,
-				"from_len", len([]rune(previewText)), "to_len", len([]rune(translated)),
-			)
+			translatedTitle = tTitle
+			translatedPreview = tPreview
 		}
 	}
 
 	if !hasError {
-		b.transCache.Put(key, translate.CachedTranslation{Title: translatedTitle, Preview: translatedPreview})
+		b.transCache.Put(key, translate.CachedTranslation{
+			SrcTitleHash:   titleHash,
+			SrcPreviewHash: previewHash,
+			Title:          translatedTitle,
+			Preview:        translatedPreview,
+		})
 	}
 	return translatedTitle, translatedPreview
 }

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -52,6 +53,13 @@ const systemPrompt = `You are a professional translation engine. Translate the u
 4. Keep the original tone (formal or casual) and style.
 5. If the text is already in the requested language, return it unchanged.`
 
+const combinedSystemPrompt = `You are a professional translation engine. Translate the user's Title and Preview text into the requested language. Requirements:
+1. Output ONLY the translated content enclosed within <TITLE>...</TITLE> and <PREVIEW>...</PREVIEW> tags.
+2. No explanations, no markdown backticks outside the tags, no extra words.
+3. Preserve URLs, links, numbers, product names and proper nouns where appropriate.
+4. Preserve original line breaks and structure within <PREVIEW>.
+5. If a section is already in the requested language, keep it unchanged within its tag.`
+
 type chatMessage struct {
 	Role    string `json:"role"`
 	Content string `json:"content"`
@@ -76,10 +84,28 @@ type chatResponse struct {
 	} `json:"error"`
 }
 
-// Translate implements Translator. targetLang is a language code such as
-// "zh"/"en"; it is expanded to a natural language name before being sent.
+var (
+	titleTagPattern   = regexp.MustCompile(`(?is)<TITLE>(.*?)</TITLE>`)
+	previewTagPattern = regexp.MustCompile(`(?is)<PREVIEW>(.*?)</PREVIEW>`)
+)
+
+func parseTaggedTranslation(content string) (title, preview string, ok bool) {
+	titleMatch := titleTagPattern.FindStringSubmatch(content)
+	previewMatch := previewTagPattern.FindStringSubmatch(content)
+
+	if len(titleMatch) >= 2 && len(previewMatch) >= 2 {
+		return strings.TrimSpace(titleMatch[1]), strings.TrimSpace(previewMatch[1]), true
+	}
+	return "", "", false
+}
+
+// Translate implements Translator for single string translation.
 func (t *LLMTranslator) Translate(ctx context.Context, text, targetLang string) (string, error) {
 	if strings.TrimSpace(text) == "" {
+		return text, nil
+	}
+
+	if IsSameLanguage(text, targetLang) {
 		return text, nil
 	}
 
@@ -96,6 +122,82 @@ func (t *LLMTranslator) Translate(ctx context.Context, text, targetLang string) 
 		MaxTokens:   maxTokensFor(text),
 		Stream:      false,
 	}
+
+	return t.doRequest(ctx, body, targetLang)
+}
+
+// TranslateContent translates both title and preview in a single LLM request to save tokens and latency.
+func (t *LLMTranslator) TranslateContent(ctx context.Context, title, preview, targetLang string) (string, string, error) {
+	trimmedTitle := strings.TrimSpace(title)
+	trimmedPreview := strings.TrimSpace(preview)
+
+	titleNeedsTrans := trimmedTitle != "" && !IsSameLanguage(trimmedTitle, targetLang)
+	previewNeedsTrans := trimmedPreview != "" && !IsSameLanguage(trimmedPreview, targetLang)
+
+	if !titleNeedsTrans && !previewNeedsTrans {
+		return title, preview, nil
+	}
+
+	if !titleNeedsTrans {
+		transPreview, err := t.Translate(ctx, preview, targetLang)
+		if err != nil {
+			return title, preview, err
+		}
+		return title, transPreview, nil
+	}
+
+	if !previewNeedsTrans {
+		transTitle, err := t.Translate(ctx, title, targetLang)
+		if err != nil {
+			return title, preview, err
+		}
+		return transTitle, preview, nil
+	}
+
+	// Both title and preview require translation -> Single combined request
+	prompt := fmt.Sprintf(
+		"Target language: %s\n\n<TITLE>\n%s\n</TITLE>\n\n<PREVIEW>\n%s\n</PREVIEW>",
+		LanguageName(targetLang), trimmedTitle, trimmedPreview,
+	)
+
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+
+	combinedText := trimmedTitle + "\n" + trimmedPreview
+	body := chatRequest{
+		Model: t.model,
+		Messages: []chatMessage{
+			{Role: "system", Content: combinedSystemPrompt},
+			{Role: "user", Content: prompt},
+		},
+		Temperature: 0,
+		MaxTokens:   maxTokensFor(combinedText),
+		Stream:      false,
+	}
+
+	respContent, err := t.doRequest(ctx, body, targetLang)
+	if err != nil {
+		return title, preview, err
+	}
+
+	parsedTitle, parsedPreview, ok := parseTaggedTranslation(respContent)
+	if !ok {
+		// Fallback: If model didn't enclose in tags, translate separately as fallback
+		transTitle, err1 := t.Translate(ctx, title, targetLang)
+		if err1 != nil {
+			transTitle = title
+		}
+		transPreview, err2 := t.Translate(ctx, preview, targetLang)
+		if err2 != nil {
+			transPreview = preview
+		}
+		return transTitle, transPreview, nil
+	}
+
+	return parsedTitle, parsedPreview, nil
+}
+
+func (t *LLMTranslator) doRequest(ctx context.Context, body chatRequest, targetLang string) (string, error) {
 	payload, err := json.Marshal(body)
 	if err != nil {
 		return "", err

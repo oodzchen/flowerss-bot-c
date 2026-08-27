@@ -70,12 +70,42 @@ func TestLLMTranslator_Translate(t *testing.T) {
 	assert.Contains(t, gotBody.Messages[1].Content, "Hello world")
 }
 
+func TestLLMTranslator_TranslateContent(t *testing.T) {
+	var gotBody chatRequest
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		require.Equal(t, "/chat/completions", r.URL.Path)
+		require.NoError(t, json.NewDecoder(r.Body).Decode(&gotBody))
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"choices": []map[string]any{
+				{"message": map[string]any{"content": "<TITLE>\n翻译标题\n</TITLE>\n<PREVIEW>\n翻译预览内容\n</PREVIEW>"}},
+			},
+		})
+	}))
+	defer srv.Close()
+
+	httpClient := client.NewHttpClient()
+	tr := NewLLMTranslator(httpClient, srv.URL, "sk-test", "test-model")
+	title, preview, err := tr.TranslateContent(context.Background(), "English Title", "English Preview Content", "zh")
+	require.NoError(t, err)
+	assert.Equal(t, "翻译标题", title)
+	assert.Equal(t, "翻译预览内容", preview)
+}
+
 func TestLLMTranslator_TranslateEmpty(t *testing.T) {
 	httpClient := client.NewHttpClient()
 	tr := NewLLMTranslator(httpClient, "http://127.0.0.1:1", "", "m")
 	out, err := tr.Translate(context.Background(), "   ", "zh")
 	require.NoError(t, err)
 	assert.Equal(t, "   ", out)
+}
+
+func TestLLMTranslator_TranslateSameLangSkipped(t *testing.T) {
+	// If text is already Chinese and target is zh, it should skip HTTP call completely
+	httpClient := client.NewHttpClient()
+	tr := NewLLMTranslator(httpClient, "http://invalid-address-that-would-fail", "", "m")
+	out, err := tr.Translate(context.Background(), "这是一篇中文博客", "zh")
+	require.NoError(t, err)
+	assert.Equal(t, "这是一篇中文博客", out)
 }
 
 func TestLLMTranslator_TranslateAPIError(t *testing.T) {
@@ -118,7 +148,6 @@ func TestLLMTranslator_TranslateOpenRouter(t *testing.T) {
 		gotXTitle = r.Header.Get("X-Title")
 		require.Equal(t, "/api/v1/chat/completions", r.URL.Path)
 		require.NoError(t, json.NewDecoder(r.Body).Decode(&gotBody))
-		// OpenRouter 返回标准 OpenAI 格式，附带 usage 字段
 		_ = json.NewEncoder(w).Encode(map[string]any{
 			"id":      "gen-abc",
 			"model":   gotBody.Model,
@@ -129,7 +158,6 @@ func TestLLMTranslator_TranslateOpenRouter(t *testing.T) {
 	defer srv.Close()
 
 	httpClient := client.NewHttpClient()
-	// 真实 OpenRouter 地址形如 https://openrouter.ai/api/v1/chat/completions
 	tr := NewLLMTranslator(httpClient, srv.URL+"/api/v1", "sk-or-v1-test", "anthropic/claude-3.5-sonnet")
 	tr.SetHTTPReferer("https://example.com")
 	tr.SetXTitle("flowerss-bot")
@@ -137,7 +165,6 @@ func TestLLMTranslator_TranslateOpenRouter(t *testing.T) {
 	out, err := tr.Translate(context.Background(), "Hello world", "zh")
 	require.NoError(t, err)
 	assert.Equal(t, "你好，世界", out)
-	// OpenRouter 模型 ID 必须原样透传（厂商/模型 形式）
 	assert.Equal(t, "anthropic/claude-3.5-sonnet", gotBody.Model)
 	assert.Equal(t, "Bearer sk-or-v1-test", gotAuth)
 	assert.Equal(t, "https://example.com", gotReferer)
@@ -167,7 +194,7 @@ func TestNewFromConfig_OpenRouterProvider(t *testing.T) {
 	assert.Equal(t, "https://openrouter.ai/api/v1", llm.baseURL)
 }
 
-func TestCache(t *testing.T) {
+func TestCache_LRU(t *testing.T) {
 	c := NewCache(2)
 	_, ok := c.Get("a")
 	assert.False(t, ok)
@@ -177,11 +204,22 @@ func TestCache(t *testing.T) {
 	assert.True(t, ok)
 	assert.Equal(t, "t1", v.Title)
 
-	// 超过上限后清空，保证内存有界
+	// Add 'b' -> cache has [b, a] (a was accessed last)
 	c.Put("b", CachedTranslation{Title: "t2"})
-	c.Put("c", CachedTranslation{Title: "t3"})
+	// Access 'a' again -> cache has [a, b]
 	_, ok = c.Get("a")
+	assert.True(t, ok)
+
+	// Add 'c' -> capacity 2 exceeded, oldest 'b' should be evicted
+	c.Put("c", CachedTranslation{Title: "t3"})
+
+	// 'a' and 'c' should remain, 'b' evicted
+	_, ok = c.Get("a")
+	assert.True(t, ok)
+	_, ok = c.Get("b")
 	assert.False(t, ok)
+	_, ok = c.Get("c")
+	assert.True(t, ok)
 }
 
 func TestCache_DeleteByHash(t *testing.T) {
@@ -201,4 +239,3 @@ func TestCache_DeleteByHash(t *testing.T) {
 	assert.True(t, ok3)
 	assert.Equal(t, "t2_zh", v.Title)
 }
-

@@ -4,7 +4,9 @@
 package translate
 
 import (
+	"container/list"
 	"context"
+	"hash/fnv"
 	"strings"
 	"sync"
 
@@ -13,11 +15,14 @@ import (
 	"github.com/indes/flowerss-bot/pkg/client"
 )
 
-// Translator translates a piece of text into the target language.
+// Translator translates a piece of text or content into the target language.
 type Translator interface {
 	// Translate translates text into targetLang (a language code such as
 	// "zh", "en", "ja"). An empty or already-target text is returned as-is.
 	Translate(ctx context.Context, text, targetLang string) (string, error)
+
+	// TranslateContent translates both title and preview in a single request.
+	TranslateContent(ctx context.Context, title, preview, targetLang string) (string, string, error)
 }
 
 // NewFromConfig builds the Translator configured in config.yml. It returns nil
@@ -115,42 +120,77 @@ func LanguageName(lang string) string {
 }
 
 // CachedTranslation holds the translated title and preview of one feed item in
-// one target language, so content pushed to many subscribers only triggers one
-// translation per (item, language) pair.
+// one target language, along with source text fingerprints to prevent duplicate translations.
 type CachedTranslation struct {
-	Title   string
-	Preview string
+	SrcTitleHash   uint64
+	SrcPreviewHash uint64
+	Title          string
+	Preview        string
 }
 
-// Cache is a small in-memory translation cache. It is safe for concurrent use
-// and evicts everything once it grows past maxSize (simple, bounded memory).
+// HashText calculates a fast 64-bit FNV-1a hash of a text.
+func HashText(s string) uint64 {
+	h := fnv.New64a()
+	_, _ = h.Write([]byte(s))
+	return h.Sum64()
+}
+
+type lruEntry struct {
+	key   string
+	value CachedTranslation
+}
+
+// Cache is a thread-safe LRU translation cache with fixed capacity.
 type Cache struct {
-	mu      sync.Mutex
-	items   map[string]CachedTranslation
-	maxSize int
+	mu        sync.Mutex
+	capacity  int
+	items     map[string]*list.Element
+	evictList *list.List
 }
 
 func NewCache(maxSize int) *Cache {
 	if maxSize <= 0 {
 		maxSize = 2000
 	}
-	return &Cache{items: make(map[string]CachedTranslation), maxSize: maxSize}
+	return &Cache{
+		capacity:  maxSize,
+		items:     make(map[string]*list.Element),
+		evictList: list.New(),
+	}
 }
 
 func (c *Cache) Get(key string) (CachedTranslation, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	v, ok := c.items[key]
-	return v, ok
+
+	if elem, ok := c.items[key]; ok {
+		c.evictList.MoveToFront(elem)
+		return elem.Value.(*lruEntry).value, true
+	}
+	return CachedTranslation{}, false
 }
 
 func (c *Cache) Put(key string, v CachedTranslation) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if len(c.items) >= c.maxSize {
-		c.items = make(map[string]CachedTranslation)
+
+	if elem, ok := c.items[key]; ok {
+		c.evictList.MoveToFront(elem)
+		elem.Value.(*lruEntry).value = v
+		return
 	}
-	c.items[key] = v
+
+	if c.evictList.Len() >= c.capacity {
+		oldest := c.evictList.Back()
+		if oldest != nil {
+			c.evictList.Remove(oldest)
+			delete(c.items, oldest.Value.(*lruEntry).key)
+		}
+	}
+
+	entry := &lruEntry{key: key, value: v}
+	elem := c.evictList.PushFront(entry)
+	c.items[key] = elem
 }
 
 // DeleteByHash removes all cache entries associated with the given hashID prefix.
@@ -158,9 +198,17 @@ func (c *Cache) DeleteByHash(hashID string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	prefix := hashID + "|"
-	for k := range c.items {
+	for k, elem := range c.items {
 		if strings.HasPrefix(k, prefix) {
+			c.evictList.Remove(elem)
 			delete(c.items, k)
 		}
 	}
+}
+
+// Len returns the current number of cached entries.
+func (c *Cache) Len() int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.evictList.Len()
 }

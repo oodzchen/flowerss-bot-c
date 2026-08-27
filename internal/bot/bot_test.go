@@ -12,8 +12,9 @@ import (
 )
 
 type mockTranslator struct {
-	shouldFail bool
-	callCount  int
+	shouldFail          bool
+	callCount           int
+	contentCallCount    int
 }
 
 func (m *mockTranslator) Translate(ctx context.Context, text, targetLang string) (string, error) {
@@ -22,6 +23,14 @@ func (m *mockTranslator) Translate(ctx context.Context, text, targetLang string)
 		return "", errors.New("mock translate error")
 	}
 	return "translated:" + text, nil
+}
+
+func (m *mockTranslator) TranslateContent(ctx context.Context, title, preview, targetLang string) (string, string, error) {
+	m.contentCallCount++
+	if m.shouldFail {
+		return "", "", errors.New("mock translate content error")
+	}
+	return "translated:" + title, "translated:" + preview, nil
 }
 
 func TestTranslateContent_SuccessCaching(t *testing.T) {
@@ -34,13 +43,33 @@ func TestTranslateContent_SuccessCaching(t *testing.T) {
 	title, preview := b.translateContent("hash123", "zh", "Original Title", "Original Preview")
 	assert.Equal(t, "translated:Original Title", title)
 	assert.Equal(t, "translated:Original Preview", preview)
-	assert.Equal(t, 2, mockTr.callCount) // title + preview
+	assert.Equal(t, 1, mockTr.contentCallCount) // combined in 1 call
 
-	// Second call should hit cache and not call translator again
+	// Second call with identical content should hit full cache and make 0 LLM calls
 	title2, preview2 := b.translateContent("hash123", "zh", "Original Title", "Original Preview")
 	assert.Equal(t, "translated:Original Title", title2)
 	assert.Equal(t, "translated:Original Preview", preview2)
-	assert.Equal(t, 2, mockTr.callCount) // still 2
+	assert.Equal(t, 1, mockTr.contentCallCount) // still 1
+	assert.Equal(t, 0, mockTr.callCount)
+}
+
+func TestTranslateContent_PartialUpdate(t *testing.T) {
+	mockTr := &mockTranslator{shouldFail: false}
+	b := &Bot{
+		translator: mockTr,
+		transCache: translate.NewCache(100),
+	}
+
+	// First call
+	b.translateContent("hash123", "zh", "Original Title", "Original Preview")
+	assert.Equal(t, 1, mockTr.contentCallCount)
+
+	// Second call with title changed but preview unchanged -> only translates title (1 Translate call)
+	title, preview := b.translateContent("hash123", "zh", "New Title", "Original Preview")
+	assert.Equal(t, "translated:New Title", title)
+	assert.Equal(t, "translated:Original Preview", preview) // reused from cache!
+	assert.Equal(t, 1, mockTr.contentCallCount)
+	assert.Equal(t, 1, mockTr.callCount)
 }
 
 func TestTranslateContent_ErrorNoCaching(t *testing.T) {
@@ -53,13 +82,13 @@ func TestTranslateContent_ErrorNoCaching(t *testing.T) {
 	title, preview := b.translateContent("hash456", "zh", "Original Title", "Original Preview")
 	assert.Equal(t, "Original Title", title)     // fallback to original
 	assert.Equal(t, "Original Preview", preview) // fallback to original
-	assert.Equal(t, 2, mockTr.callCount)
+	assert.Equal(t, 1, mockTr.contentCallCount)
 
 	// Next call should NOT hit cache because translation failed and wasn't cached
 	title2, preview2 := b.translateContent("hash456", "zh", "Original Title", "Original Preview")
 	assert.Equal(t, "Original Title", title2)
 	assert.Equal(t, "Original Preview", preview2)
-	assert.Equal(t, 4, mockTr.callCount) // called again (2 + 2)
+	assert.Equal(t, 2, mockTr.contentCallCount)
 }
 
 func TestRenderContentMessage(t *testing.T) {
@@ -90,29 +119,24 @@ func TestRenderContentMessage(t *testing.T) {
 	assert.Contains(t, msg, "#news")
 }
 
-func TestBroadcastEdit_CacheEviction(t *testing.T) {
+func TestBroadcastEdit_NoDuplicateTranslationWhenContentUnchanged(t *testing.T) {
 	mockTr := &mockTranslator{shouldFail: false}
 	b := &Bot{
 		translator: mockTr,
 		transCache: translate.NewCache(100),
 	}
 
-	// First translation
-	t1, _ := b.translateContent("hash_edit", "zh", "Title 1", "Preview 1")
+	// Initial translation
+	t1, p1 := b.translateContent("hash_edit", "zh", "Title 1", "Preview 1")
 	assert.Equal(t, "translated:Title 1", t1)
-	assert.Equal(t, 2, mockTr.callCount)
+	assert.Equal(t, "translated:Preview 1", p1)
+	assert.Equal(t, 1, mockTr.contentCallCount)
 
-	// Simulate cache hit before edit
-	t1Cached, _ := b.translateContent("hash_edit", "zh", "Title 1", "Preview 1")
-	assert.Equal(t, "translated:Title 1", t1Cached)
-	assert.Equal(t, 2, mockTr.callCount)
-
-	// Clear cache for edited hash
-	b.transCache.DeleteByHash("hash_edit")
-
-	// Translate new edited content
-	t2, _ := b.translateContent("hash_edit", "zh", "Title 2 (Edited)", "Preview 2")
-	assert.Equal(t, "translated:Title 2 (Edited)", t2)
-	assert.Equal(t, 4, mockTr.callCount)
+	// Simulate polling/broadcast edit with unchanged title and preview
+	t1Again, p1Again := b.translateContent("hash_edit", "zh", "Title 1", "Preview 1")
+	assert.Equal(t, "translated:Title 1", t1Again)
+	assert.Equal(t, "translated:Preview 1", p1Again)
+	// Zero new calls to translator!
+	assert.Equal(t, 1, mockTr.contentCallCount)
+	assert.Equal(t, 0, mockTr.callCount)
 }
-

@@ -188,7 +188,12 @@ func (t *RssUpdateTask) getSourceContents(source *model.Source) ([]*model.Conten
 	}
 	t.core.ClearSourceErrorCount(context.Background(), source.ID)
 
-	newContents, editContents, err := t.processFeedItems(source, rssFeed.Items)
+	feedLang := feed.ItemLanguage(rssFeed, nil)
+	if source.Language == "" && feedLang != "" {
+		source.Language = feedLang
+	}
+
+	newContents, editContents, err := t.processFeedItems(source, rssFeed.Items, feedLang)
 	if err != nil {
 		log.Errorf("process contents for source [%d] %s failed, err: %v", source.ID, source.Link, err)
 		return nil, nil, err
@@ -200,8 +205,15 @@ func (t *RssUpdateTask) getSourceContents(source *model.Source) ([]*model.Conten
 
 // processFeedItems handles feed items by separating new items and edited items
 func (t *RssUpdateTask) processFeedItems(
-	s *model.Source, items []*gofeed.Item,
+	s *model.Source, items []*gofeed.Item, feedLangs ...string,
 ) ([]*model.Content, []*model.Content, error) {
+	feedLang := ""
+	if len(feedLangs) > 0 {
+		feedLang = feedLangs[0]
+	}
+	if feedLang == "" && s != nil {
+		feedLang = s.Language
+	}
 	var newItems []*gofeed.Item
 	var editContents []*model.Content
 
@@ -224,6 +236,14 @@ func (t *RssUpdateTask) processFeedItems(
 				}
 			}
 
+			itemLang := feed.ItemLanguage(nil, item)
+			if itemLang == "" {
+				itemLang = feedLang
+			}
+			if itemLang != "" {
+				oldContent.Language = itemLang
+			}
+
 			oldContent.Title = strings.Trim(item.Title, " ")
 			oldContent.Description = feed.ItemDescription(item)
 			oldContent.RawLink = item.Link
@@ -237,6 +257,13 @@ func (t *RssUpdateTask) processFeedItems(
 			}
 		} else if oldContent.Description == "" && feed.ItemDescription(item) != "" {
 			oldContent.Description = feed.ItemDescription(item)
+			itemLang := feed.ItemLanguage(nil, item)
+			if itemLang == "" {
+				itemLang = feedLang
+			}
+			if itemLang != "" {
+				oldContent.Language = itemLang
+			}
 			_ = t.core.UpdateContent(context.Background(), hashID, oldContent)
 		}
 	}

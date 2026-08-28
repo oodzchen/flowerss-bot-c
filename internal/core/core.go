@@ -273,6 +273,7 @@ func (c *Core) CreateSource(ctx context.Context, sourceURL string) (*model.Sourc
 	s = &model.Source{
 		Title:      rssFeed.Title,
 		Link:       sourceURL,
+		Language:   feed.ItemLanguage(rssFeed, nil),
 		ErrorCount: config.ErrorThreshold + 1, // 避免task更新
 	}
 
@@ -302,6 +303,10 @@ func (c *Core) AddSourceContents(
 			previewURL, _ = tgraph.PublishHtml(source.Title, item.Title, item.Link, itemContent)
 		}
 		itemGUID := feed.ItemGUID(item)
+		itemLang := feed.ItemLanguage(nil, item)
+		if itemLang == "" && source != nil && source.Language != "" {
+			itemLang = source.Language
+		}
 		content := &model.Content{
 			Title:        strings.Trim(item.Title, " "),
 			Description:  feed.ItemDescription(item),
@@ -311,6 +316,7 @@ func (c *Core) AddSourceContents(
 			RawLink:      item.Link,
 			TelegraphURL: previewURL,
 			PublishedAt:  feed.ItemPublishedAt(item),
+			Language:     itemLang,
 		}
 		contents = append(contents, content)
 		go func() {

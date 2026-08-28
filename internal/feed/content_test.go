@@ -195,3 +195,37 @@ func TestItemGUID(t *testing.T) {
 	})
 }
 
+func TestItemLanguage(t *testing.T) {
+	t.Run("RSS channel language", func(t *testing.T) {
+		feedXML := `<?xml version="1.0"?><rss version="2.0"><channel><title>Feed</title><link>https://example.com</link><description>Feed</description><language>zh-CN</language><item><title>Post</title><link>https://example.com/post</link></item></channel></rss>`
+		parsed, err := gofeed.NewParser().Parse(strings.NewReader(feedXML))
+		assert.NoError(t, err)
+		assert.Equal(t, "zh-cn", ItemLanguage(parsed, parsed.Items[0]))
+	})
+
+	t.Run("Atom feed xml:lang", func(t *testing.T) {
+		feedXML := `<?xml version="1.0"?><feed xmlns="http://www.w3.org/2005/Atom" xml:lang="en-US"><title>Feed</title><id>feed</id><updated>2026-01-01T00:00:00Z</updated><entry><title>Post</title><id>post</id><updated>2026-01-01T00:00:00Z</updated></entry></feed>`
+		parsed, err := gofeed.NewParser().Parse(strings.NewReader(feedXML))
+		assert.NoError(t, err)
+		assert.Equal(t, "en-us", ItemLanguage(parsed, parsed.Items[0]))
+	})
+
+	t.Run("Item DublinCore dc:language takes priority over feed language", func(t *testing.T) {
+		feedXML := `<?xml version="1.0"?><rss version="2.0" xmlns:dc="http://purl.org/dc/elements/1.1/"><channel><title>Feed</title><link>https://example.com</link><description>Feed</description><language>en</language><item><title>Post</title><link>https://example.com/post</link><dc:language>ja-JP</dc:language></item></channel></rss>`
+		parsed, err := gofeed.NewParser().Parse(strings.NewReader(feedXML))
+		assert.NoError(t, err)
+		assert.Equal(t, "ja-jp", ItemLanguage(parsed, parsed.Items[0]))
+	})
+
+	t.Run("Embedded HTML lang attribute in description", func(t *testing.T) {
+		item := &gofeed.Item{
+			Description: `<div lang="zh-Hans">内容简介</div>`,
+		}
+		assert.Equal(t, "zh-hans", ItemLanguage(nil, item))
+	})
+
+	t.Run("handles nil feed and nil item", func(t *testing.T) {
+		assert.Empty(t, ItemLanguage(nil, nil))
+	})
+}
+

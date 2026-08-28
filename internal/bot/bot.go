@@ -156,6 +156,10 @@ func (b *Bot) renderContentMessage(source *model.Source, sub *model.Subscribe, c
 				"lang", sub.TranslateLang, "lang_name", langName,
 			)
 		} else {
+			metaLang := content.Language
+			if metaLang == "" && source != nil {
+				metaLang = source.Language
+			}
 			zap.S().Debugw(
 				"translating content for subscriber",
 				"user id", sub.UserID,
@@ -163,9 +167,10 @@ func (b *Bot) renderContentMessage(source *model.Source, sub *model.Subscribe, c
 				"hash", content.HashID,
 				"lang", sub.TranslateLang,
 				"lang_name", langName,
+				"meta_lang", metaLang,
 			)
 			contentTitle, subPreviewText = b.translateContent(
-				content.HashID, sub.TranslateLang, content.Title, previewText,
+				content.HashID, sub.TranslateLang, content.Title, previewText, metaLang,
 			)
 		}
 	}
@@ -393,7 +398,11 @@ func (b *Bot) BroadcastEdit(source *model.Source, subs []*model.Subscribe, conte
 // fails. Results are cached per (content hash, language) and validated against
 // source text fingerprints so that content pushed to many subscribers or checked
 // during polling updates triggers minimal LLM token consumption.
-func (b *Bot) translateContent(hashID, lang, title, previewText string) (string, string) {
+func (b *Bot) translateContent(hashID, lang, title, previewText string, metaLangs ...string) (string, string) {
+	metaLang := ""
+	if len(metaLangs) > 0 {
+		metaLang = metaLangs[0]
+	}
 	key := hashID + "|" + lang
 	langName := translate.LanguageName(lang)
 
@@ -406,12 +415,35 @@ func (b *Bot) translateContent(hashID, lang, title, previewText string) (string,
 		return cached.Title, cached.Preview
 	}
 
+	titleNeedsTrans := strings.TrimSpace(title) != "" && !translate.IsSameLanguageWithMeta(title, lang, metaLang)
+	previewNeedsTrans := strings.TrimSpace(previewText) != "" && !translate.IsSameLanguageWithMeta(previewText, lang, metaLang)
+
+	if !titleNeedsTrans && !previewNeedsTrans {
+		zap.S().Debugw(
+			"translate skipped (already target language)",
+			"hash", hashID,
+			"lang", lang,
+			"lang_name", langName,
+			"meta_lang", metaLang,
+		)
+		b.transCache.Put(key, translate.CachedTranslation{
+			SrcTitleHash:   titleHash,
+			SrcPreviewHash: previewHash,
+			Title:          title,
+			Preview:        previewText,
+		})
+		return title, previewText
+	}
+
 	ctx := context.Background()
 	zap.S().Debugw(
 		"translate start",
 		"hash", hashID,
 		"lang", lang,
 		"lang_name", langName,
+		"meta_lang", metaLang,
+		"title_needs", titleNeedsTrans,
+		"preview_needs", previewNeedsTrans,
 		"title_len", len([]rune(title)),
 		"preview_len", len([]rune(previewText)),
 	)
@@ -428,7 +460,7 @@ func (b *Bot) translateContent(hashID, lang, title, previewText string) (string,
 
 	if titleUnchanged {
 		translatedTitle = cached.Title
-		if strings.TrimSpace(previewText) != "" {
+		if previewNeedsTrans {
 			tPreview, err := b.translator.Translate(ctx, previewText, lang)
 			if err != nil {
 				hasError = true
@@ -442,7 +474,7 @@ func (b *Bot) translateContent(hashID, lang, title, previewText string) (string,
 		}
 	} else if previewUnchanged {
 		translatedPreview = cached.Preview
-		if strings.TrimSpace(title) != "" {
+		if titleNeedsTrans {
 			tTitle, err := b.translator.Translate(ctx, title, lang)
 			if err != nil {
 				hasError = true
@@ -453,6 +485,26 @@ func (b *Bot) translateContent(hashID, lang, title, previewText string) (string,
 			}
 		} else {
 			translatedTitle = title
+		}
+	} else if !titleNeedsTrans {
+		translatedTitle = title
+		tPreview, err := b.translator.Translate(ctx, previewText, lang)
+		if err != nil {
+			hasError = true
+			zap.S().Warnw("translate preview failed, fallback to original", "error", err.Error(), "lang", lang, "hash", hashID)
+			translatedPreview = previewText
+		} else {
+			translatedPreview = tPreview
+		}
+	} else if !previewNeedsTrans {
+		translatedPreview = previewText
+		tTitle, err := b.translator.Translate(ctx, title, lang)
+		if err != nil {
+			hasError = true
+			zap.S().Warnw("translate title failed, fallback to original", "error", err.Error(), "lang", lang, "hash", hashID)
+			translatedTitle = title
+		} else {
+			translatedTitle = tTitle
 		}
 	} else {
 		// Both changed or initial fetch -> combined translation in a single request

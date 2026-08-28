@@ -12,5 +12,6 @@ type Content struct {
 	Description  string `gorm:"type:text"`
 	TelegraphURL string
 	PublishedAt  *time.Time
+	Language     string
 	EditTime
 }

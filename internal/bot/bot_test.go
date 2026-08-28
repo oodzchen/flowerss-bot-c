@@ -12,9 +12,9 @@ import (
 )
 
 type mockTranslator struct {
-	shouldFail          bool
-	callCount           int
-	contentCallCount    int
+	shouldFail       bool
+	callCount        int
+	contentCallCount int
 }
 
 func (m *mockTranslator) Translate(ctx context.Context, text, targetLang string) (string, error) {
@@ -70,6 +70,58 @@ func TestTranslateContent_PartialUpdate(t *testing.T) {
 	assert.Equal(t, "translated:Original Preview", preview) // reused from cache!
 	assert.Equal(t, 1, mockTr.contentCallCount)
 	assert.Equal(t, 1, mockTr.callCount)
+}
+
+func TestTranslateContent_AlreadyTargetLanguageSkipped(t *testing.T) {
+	mockTr := &mockTranslator{shouldFail: false}
+	b := &Bot{
+		translator: mockTr,
+		transCache: translate.NewCache(100),
+	}
+
+	// Chinese content with Chinese target language -> 0 calls to translator!
+	title, preview := b.translateContent("hash_zh", "zh", "你好世界，这是一篇中文测试文章", "这里是文章的正文预览内容")
+	assert.Equal(t, "你好世界，这是一篇中文测试文章", title)
+	assert.Equal(t, "这里是文章的正文预览内容", preview)
+	assert.Equal(t, 0, mockTr.contentCallCount)
+	assert.Equal(t, 0, mockTr.callCount)
+
+	// Subsequent call should also hit cache with 0 translator calls
+	title2, preview2 := b.translateContent("hash_zh", "zh", "你好世界，这是一篇中文测试文章", "这里是文章的正文预览内容")
+	assert.Equal(t, "你好世界，这是一篇中文测试文章", title2)
+	assert.Equal(t, "这里是文章的正文预览内容", preview2)
+	assert.Equal(t, 0, mockTr.contentCallCount)
+	assert.Equal(t, 0, mockTr.callCount)
+}
+
+func TestTranslateContent_PartialTargetLanguage(t *testing.T) {
+	mockTr := &mockTranslator{shouldFail: false}
+	b := &Bot{
+		translator: mockTr,
+		transCache: translate.NewCache(100),
+	}
+
+	// Title is English, Preview is already Chinese -> Only translates Title!
+	title, preview := b.translateContent("hash_mixed", "zh", "English Article Title", "这里是已经为中文的正文内容预览")
+	assert.Equal(t, "translated:English Article Title", title)
+	assert.Equal(t, "这里是已经为中文的正文内容预览", preview)
+	assert.Equal(t, 0, mockTr.contentCallCount) // Did not need combined translation
+	assert.Equal(t, 1, mockTr.callCount)        // Only 1 single translation for title
+}
+
+func TestTranslateContent_XMLMetaLanguageMatch(t *testing.T) {
+	mockTr := &mockTranslator{shouldFail: false}
+	b := &Bot{
+		translator: mockTr,
+		transCache: translate.NewCache(100),
+	}
+
+	// Feed metadata indicates content is already in target language -> 0 calls
+	title, preview := b.translateContent("hash_meta", "en", "Ambiguous Title", "Ambiguous preview content", "en-US")
+	assert.Equal(t, "Ambiguous Title", title)
+	assert.Equal(t, "Ambiguous preview content", preview)
+	assert.Equal(t, 0, mockTr.contentCallCount)
+	assert.Equal(t, 0, mockTr.callCount)
 }
 
 func TestTranslateContent_ErrorNoCaching(t *testing.T) {

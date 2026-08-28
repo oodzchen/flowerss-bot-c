@@ -6,6 +6,8 @@ import (
 	"time"
 
 	"github.com/mmcdole/gofeed"
+
+	"github.com/indes/flowerss-bot/internal/translate"
 )
 
 // ItemGUID returns the best available unique identifier for a feed item.
@@ -90,6 +92,78 @@ func ItemContent(item *gofeed.Item) string {
 		return item.Content
 	}
 	return ItemDescription(item)
+}
+
+// ItemLanguage extracts the declared language of a feed item or its parent feed.
+// It checks Dublin Core (<dc:language>), XML lang attributes, extensions,
+// embedded HTML/XML lang attributes, and parent feed language.
+func ItemLanguage(feed *gofeed.Feed, item *gofeed.Item) string {
+	if item != nil {
+		// 1. Dublin Core language on item (<dc:language>)
+		if item.DublinCoreExt != nil && len(item.DublinCoreExt.Language) > 0 {
+			for _, lang := range item.DublinCoreExt.Language {
+				if lang = translate.NormalizeLangTag(lang); lang != "" {
+					return lang
+				}
+			}
+		}
+
+		// 2. Namespaced XML / Atom extension
+		if lang := extensionValue(item, "dc", "language"); lang != "" {
+			return translate.NormalizeLangTag(lang)
+		}
+		if lang := extensionValue(item, "xml", "lang"); lang != "" {
+			return translate.NormalizeLangTag(lang)
+		}
+		if lang := extensionValue(item, "atom", "lang"); lang != "" {
+			return translate.NormalizeLangTag(lang)
+		}
+
+		// 3. Custom map
+		if item.Custom != nil {
+			if lang := item.Custom["language"]; lang != "" {
+				return translate.NormalizeLangTag(lang)
+			}
+			if lang := item.Custom["lang"]; lang != "" {
+				return translate.NormalizeLangTag(lang)
+			}
+			if lang := item.Custom["xml:lang"]; lang != "" {
+				return translate.NormalizeLangTag(lang)
+			}
+		}
+
+		// 4. Embedded HTML / XML lang attribute in Description or Content
+		if lang := translate.ExtractXMLLanguage(item.Description); lang != "" {
+			return lang
+		}
+		if lang := translate.ExtractXMLLanguage(item.Content); lang != "" {
+			return lang
+		}
+	}
+
+	// 5. Feed level language (<channel><language>, <feed xml:lang="...">, "language": "...")
+	if feed != nil {
+		if lang := translate.NormalizeLangTag(feed.Language); lang != "" {
+			return lang
+		}
+		if feed.DublinCoreExt != nil && len(feed.DublinCoreExt.Language) > 0 {
+			for _, lang := range feed.DublinCoreExt.Language {
+				if lang = translate.NormalizeLangTag(lang); lang != "" {
+					return lang
+				}
+			}
+		}
+		if feed.Custom != nil {
+			if lang := feed.Custom["language"]; lang != "" {
+				return translate.NormalizeLangTag(lang)
+			}
+			if lang := feed.Custom["lang"]; lang != "" {
+				return translate.NormalizeLangTag(lang)
+			}
+		}
+	}
+
+	return ""
 }
 
 func extensionValue(item *gofeed.Item, namespace, name string) string {

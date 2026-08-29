@@ -230,7 +230,11 @@ func (t *RssUpdateTask) processFeedItems(
 		if isContentEdited(oldContent, item) {
 			previewURL := oldContent.TelegraphURL
 			itemContent := feed.ItemContent(item)
-			if config.EnableTelegraph && len([]rune(itemContent)) > config.PreviewText {
+			previewThreshold := config.PreviewText
+			if previewThreshold < 0 {
+				previewThreshold = -previewThreshold
+			}
+			if config.EnableTelegraph && previewThreshold > 0 && len([]rune(itemContent)) > previewThreshold {
 				if newURL, err := tgraph.PublishHtml(s.Title, item.Title, item.Link, itemContent); err == nil && newURL != "" {
 					previewURL = newURL
 				}

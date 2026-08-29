@@ -81,6 +81,10 @@ type Subscription interface {
 	UpdateSubscriptionTimezone(ctx context.Context, userID int64, sourceID uint, tz string) (int64, error)
 	// UpdateSubscriptionsTimezone 批量更新某用户全部订阅的时区，返回受影响行数
 	UpdateSubscriptionsTimezone(ctx context.Context, userID int64, tz string) (int64, error)
+	// UpdateSubscriptionPreviewLength 更新单个订阅的正文预览长度限制（显式列更新，nil/0 也会写入）
+	UpdateSubscriptionPreviewLength(ctx context.Context, userID int64, sourceID uint, length *int) (int64, error)
+	// UpdateSubscriptionsPreviewLength 批量更新某用户全部订阅的正文预览长度限制，返回受影响行数
+	UpdateSubscriptionsPreviewLength(ctx context.Context, userID int64, length *int) (int64, error)
 }
 
 type Content interface {

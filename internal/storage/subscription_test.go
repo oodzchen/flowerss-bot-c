@@ -304,4 +304,51 @@ func TestSubscriptionLangUpdate(t *testing.T) {
 			assert.Equal(t, "+08:00", sub.Timezone)
 		}
 	})
+
+	t.Run("update single subscription preview length", func(t *testing.T) {
+		ptrVal := func(v int) *int { return &v }
+
+		affected, err := s.UpdateSubscriptionPreviewLength(ctx, 4001, 1, ptrVal(400))
+		assert.NoError(t, err)
+		assert.Equal(t, int64(1), affected)
+
+		sub, err := s.GetSubscription(ctx, 4001, 1)
+		assert.NoError(t, err)
+		assert.NotNil(t, sub.PreviewLength)
+		assert.Equal(t, 400, *sub.PreviewLength)
+
+		// Test negative length
+		affected, err = s.UpdateSubscriptionPreviewLength(ctx, 4001, 1, ptrVal(-400))
+		assert.NoError(t, err)
+		assert.Equal(t, int64(1), affected)
+
+		sub, err = s.GetSubscription(ctx, 4001, 1)
+		assert.NoError(t, err)
+		assert.NotNil(t, sub.PreviewLength)
+		assert.Equal(t, -400, *sub.PreviewLength)
+
+		// Test reset to nil
+		affected, err = s.UpdateSubscriptionPreviewLength(ctx, 4001, 1, nil)
+		assert.NoError(t, err)
+		assert.Equal(t, int64(1), affected)
+
+		sub, err = s.GetSubscription(ctx, 4001, 1)
+		assert.NoError(t, err)
+		assert.Nil(t, sub.PreviewLength)
+	})
+
+	t.Run("update all subscriptions preview length", func(t *testing.T) {
+		ptrVal := func(v int) *int { return &v }
+
+		affected, err := s.UpdateSubscriptionsPreviewLength(ctx, 4001, ptrVal(-200))
+		assert.NoError(t, err)
+		assert.Equal(t, int64(2), affected)
+
+		for _, sourceID := range []uint{1, 2} {
+			sub, err := s.GetSubscription(ctx, 4001, sourceID)
+			assert.NoError(t, err)
+			assert.NotNil(t, sub.PreviewLength)
+			assert.Equal(t, -200, *sub.PreviewLength)
+		}
+	})
 }

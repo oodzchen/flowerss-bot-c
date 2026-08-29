@@ -299,7 +299,11 @@ func (c *Core) AddSourceContents(
 		wg.Add(1)
 		previewURL := ""
 		itemContent := feed.ItemContent(item)
-		if config.EnableTelegraph && len([]rune(itemContent)) > config.PreviewText {
+		previewThreshold := config.PreviewText
+		if previewThreshold < 0 {
+			previewThreshold = -previewThreshold
+		}
+		if config.EnableTelegraph && previewThreshold > 0 && len([]rune(itemContent)) > previewThreshold {
 			previewURL, _ = tgraph.PublishHtml(source.Title, item.Title, item.Link, itemContent)
 		}
 		itemGUID := feed.ItemGUID(item)
@@ -422,6 +426,23 @@ func (c *Core) SetSubscriptionTimezone(ctx context.Context, userID int64, source
 // SetSubscriptionTimezoneForAll sets the timezone of every subscription owned by userID.
 func (c *Core) SetSubscriptionTimezoneForAll(ctx context.Context, userID int64, tz string) (int, error) {
 	count, err := c.subscriptionStorage.UpdateSubscriptionsTimezone(ctx, userID, tz)
+	return int(count), err
+}
+
+// SetSubscriptionPreviewLength sets the preview text length limit of one subscription.
+// A nil length resets it to the global configuration.
+func (c *Core) SetSubscriptionPreviewLength(ctx context.Context, userID int64, sourceID uint, length *int) error {
+	if _, err := c.GetSubscription(ctx, userID, sourceID); err != nil {
+		return err
+	}
+
+	_, err := c.subscriptionStorage.UpdateSubscriptionPreviewLength(ctx, userID, sourceID, length)
+	return err
+}
+
+// SetSubscriptionPreviewLengthForAll sets the preview text length limit of every subscription owned by userID.
+func (c *Core) SetSubscriptionPreviewLengthForAll(ctx context.Context, userID int64, length *int) (int, error) {
+	count, err := c.subscriptionStorage.UpdateSubscriptionsPreviewLength(ctx, userID, length)
 	return int(count), err
 }
 

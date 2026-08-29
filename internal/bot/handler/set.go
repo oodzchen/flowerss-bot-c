@@ -104,6 +104,7 @@ const (
 [Tag] {{if .sub.Tag}}{{ .sub.Tag }}{{else}}无{{end}}
 [翻译] {{if .sub.TranslateLang}}{{ .sub.TranslateLang }}{{else}}无{{end}}
 [时区] {{if .sub.Timezone}}{{ .sub.Timezone }}{{else}}无{{end}}
+[正文预览] {{ .previewDisplay }}
 `
 )
 
@@ -157,7 +158,12 @@ func (r *SetFeedItemButton) Handle(ctx tb.Context) error {
 	t := template.New("setting template")
 	_, _ = t.Parse(feedSettingTmpl)
 	text := new(bytes.Buffer)
-	_ = t.Execute(text, map[string]interface{}{"source": source, "sub": sub, "Count": config.ErrorThreshold})
+	_ = t.Execute(text, map[string]interface{}{
+		"source":         source,
+		"sub":            sub,
+		"Count":          config.ErrorThreshold,
+		"previewDisplay": sub.PreviewLengthDisplay(config.PreviewText),
+	})
 	return ctx.Edit(
 		text.String(),
 		&tb.SendOptions{ParseMode: tb.ModeHTML},

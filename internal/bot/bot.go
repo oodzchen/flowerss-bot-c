@@ -72,6 +72,7 @@ func (b *Bot) registerCommands(appCore *core.Core) error {
 		handler.NewSetUpdateInterval(appCore),
 		handler.NewSetLang(appCore),
 		handler.NewSetTZ(appCore),
+		handler.NewSetPreview(appCore),
 		handler.NewTranslate(b.translator),
 		handler.NewExport(appCore),
 		handler.NewImport(),
@@ -145,7 +146,8 @@ func (b *Bot) SourceUpdateError(source *model.Source) {
 
 // renderContentMessage formats a content item for a specific subscriber
 func (b *Bot) renderContentMessage(source *model.Source, sub *model.Subscribe, content *model.Content) (string, error) {
-	previewText := preview.TrimDescription(content.Description, config.PreviewText)
+	previewLimit := sub.GetPreviewLimit(config.PreviewText)
+	previewText := preview.TrimDescription(content.Description, previewLimit)
 	contentTitle, subPreviewText := content.Title, previewText
 	if sub.TranslateLang != "" {
 		langName := translate.LanguageName(sub.TranslateLang)
@@ -403,11 +405,10 @@ func (b *Bot) translateContent(hashID, lang, title, previewText string, metaLang
 	if len(metaLangs) > 0 {
 		metaLang = metaLangs[0]
 	}
-	key := hashID + "|" + lang
-	langName := translate.LanguageName(lang)
-
 	titleHash := translate.HashText(title)
 	previewHash := translate.HashText(previewText)
+	key := fmt.Sprintf("%s|%s|%x", hashID, lang, previewHash)
+	langName := translate.LanguageName(lang)
 
 	cached, hasCache := b.transCache.Get(key)
 	if hasCache && cached.SrcTitleHash == titleHash && cached.SrcPreviewHash == previewHash {

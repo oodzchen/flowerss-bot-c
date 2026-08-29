@@ -16,7 +16,7 @@ var (
 )
 
 func TrimDescription(desc string, limit int) string {
-	if limit <= 0 {
+	if limit == 0 {
 		return ""
 	}
 
@@ -42,11 +42,21 @@ func TrimDescription(desc string, limit int) string {
 	desc = strings.Join(cleanLines, "\n")
 
 	contentDescRune := []rune(desc)
-	if len(contentDescRune) > limit {
-		if limit == 1 {
-			return "…"
+	if limit > 0 {
+		if len(contentDescRune) > limit {
+			if limit == 1 {
+				return "…"
+			}
+			desc = string(contentDescRune[:limit-1]) + "…"
 		}
-		desc = string(contentDescRune[:limit-1]) + "…"
+	} else {
+		absLimit := -limit
+		if len(contentDescRune) > absLimit {
+			if absLimit == 1 {
+				return "…"
+			}
+			desc = "…" + string(contentDescRune[len(contentDescRune)-(absLimit-1):])
+		}
 	}
 
 	return desc

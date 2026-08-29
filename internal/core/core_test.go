@@ -484,6 +484,50 @@ func TestCore_SetSubscriptionTimezoneForAll(t *testing.T) {
 	})
 }
 
+func TestCore_SetSubscriptionPreviewLength(t *testing.T) {
+	c, s := getTestCore(t)
+	defer s.Ctrl.Finish()
+	ctx := context.Background()
+	userID := int64(101)
+	sourceID := uint(1)
+	ptrVal := func(v int) *int { return &v }
+
+	t.Run("success positive", func(t *testing.T) {
+		s.Subscription.EXPECT().GetSubscription(ctx, userID, sourceID).Return(&model.Subscribe{}, nil)
+		s.Subscription.EXPECT().UpdateSubscriptionPreviewLength(ctx, userID, sourceID, ptrVal(400)).Return(int64(1), nil)
+		err := c.SetSubscriptionPreviewLength(ctx, userID, sourceID, ptrVal(400))
+		assert.NoError(t, err)
+	})
+
+	t.Run("success negative", func(t *testing.T) {
+		s.Subscription.EXPECT().GetSubscription(ctx, userID, sourceID).Return(&model.Subscribe{}, nil)
+		s.Subscription.EXPECT().UpdateSubscriptionPreviewLength(ctx, userID, sourceID, ptrVal(-400)).Return(int64(1), nil)
+		err := c.SetSubscriptionPreviewLength(ctx, userID, sourceID, ptrVal(-400))
+		assert.NoError(t, err)
+	})
+
+	t.Run("subscription not exist", func(t *testing.T) {
+		s.Subscription.EXPECT().GetSubscription(ctx, userID, sourceID).Return(nil, storage.ErrRecordNotFound)
+		err := c.SetSubscriptionPreviewLength(ctx, userID, sourceID, ptrVal(400))
+		assert.Equal(t, ErrSubscriptionNotExist, err)
+	})
+}
+
+func TestCore_SetSubscriptionPreviewLengthForAll(t *testing.T) {
+	c, s := getTestCore(t)
+	defer s.Ctrl.Finish()
+	ctx := context.Background()
+	userID := int64(101)
+	ptrVal := func(v int) *int { return &v }
+
+	t.Run("update all preview lengths", func(t *testing.T) {
+		s.Subscription.EXPECT().UpdateSubscriptionsPreviewLength(ctx, userID, ptrVal(-300)).Return(int64(3), nil)
+		count, err := c.SetSubscriptionPreviewLengthForAll(ctx, userID, ptrVal(-300))
+		assert.NoError(t, err)
+		assert.Equal(t, 3, count)
+	})
+}
+
 func TestCore_DisableSourceUpdate(t *testing.T) {
 	c, s := getTestCore(t)
 	defer s.Ctrl.Finish()

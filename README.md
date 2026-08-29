@@ -115,7 +115,7 @@ log:
 | `telegraph_account` | 未提供 Token 时用于创建 Telegraph 账号的名称 | 不启用 |
 | `telegraph_author_name` | Telegraph 页面作者名称 | `flowerss-bot` |
 | `telegraph_author_url` | Telegraph 页面作者链接 | 空 |
-| `preview_text` | 推送正文预览字符数，设为 `0` 可关闭 | `300` |
+| `preview_text` | 推送正文预览字符数，正数为截取前 N 字符，负数为截取后 N 字符，设为 `0` 可关闭 | `300` |
 | `disable_web_page_preview` | 是否关闭 Telegram 网页预览 | `false` |
 | `update_interval` | 全局扫描间隔及新订阅的默认抓取频率，单位为分钟 | `10` |
 | `error_threshold` | RSS 源连续抓取失败多少次后暂停更新 | `100` |
@@ -163,6 +163,8 @@ telegraph_author_url: https://github.com/indes/flowerss-bot
 /setlang <sourceID> <lang> 设置单个订阅的翻译语言，lang 为 off 时关闭
 /settz <timezone> 设置全部订阅的推送时间显示时区
 /settz <sourceID> <timezone> 设置单个订阅的时区，timezone 为 off 时重置
+/setpreview <count> 设置全部订阅的正文预览字符数与截取方向（正数前N字，负数后N字，0/off关闭，default重置）
+/setpreview <sourceID> <count> 设置单个订阅的正文预览字符数与截取方向
 /translate <lang> <text> 测试翻译服务
 /activeall 开启所有订阅源的抓取
 /pauseall 暂停所有订阅源的抓取
@@ -198,6 +200,8 @@ telegraph_author_url: https://github.com/indes/flowerss-bot
 /setlang @ChannelID <sourceID> <lang>
 /settz @ChannelID <timezone>
 /settz @ChannelID <sourceID> <timezone>
+/setpreview @ChannelID <count>
+/setpreview @ChannelID <sourceID> <count>
 /activeall @ChannelID
 /pauseall @ChannelID
 /export @ChannelID

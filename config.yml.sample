@@ -5,7 +5,7 @@ telegraph_author_name:
 telegraph_author_url:
 socks5:
 update_interval: 10
-preview_text: 300 # 推送预览字符数，设为0可关闭
+preview_text: 300 # 推送预览字符数，正数取前N字，负数取后N字，设为0可关闭
 user_agent: Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36
 
 # 推送模板支持: SourceTitle、ContentTitle、RawLink、PublishedAt、PreviewText、

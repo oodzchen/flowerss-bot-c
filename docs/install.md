@@ -92,7 +92,7 @@ message_tpl: |-
 | --------------------------| ----------------------------------------- | ------------------------------------------ |
 | bot_token                 | Telegram Bot Token                        | 必填                                       |
 | telegraph_token           | Telegraph Token, 用于转存原文到 Telegraph   | 可忽略（不转存原文到 Telegraph ）          |
-| preview_text              | 纯文字预览字数（不借助Telegraph）            |可忽略（默认300，0为禁用）                  |
+| preview_text              | 纯文字预览字数（正数取前N字，负数取后N字）   |可忽略（默认300，0为禁用）                  |
 | user_agent                | User Agent                                |可忽略                                     |
 | disable_web_page_preview  | 是否禁用 web 页面预览                       | 可忽略（默认 false, true 为禁用）          |
 | update_interval           | RSS 源扫描间隔（分钟）                      | 可忽略（默认 10）                          |

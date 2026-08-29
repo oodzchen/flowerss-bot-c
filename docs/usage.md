@@ -11,6 +11,9 @@
 /setfeedtag [sub id] [tag1] [tag2] 设置订阅标签（最多设置三个Tag，以空格分隔）
 /setfeedtitle [sub id] [title] 设置订阅标题（省略title恢复RSS原标题）
 /setinterval [interval] [sub id] 设置订阅刷新频率（可设置多个sub id，以空格分隔）
+/setlang <lang> 设置全部订阅的翻译语言，或 /setlang <sub id> <lang>
+/settz <timezone> 设置全部订阅的时区，或 /settz <sub id> <timezone>
+/setpreview <count> 设置订阅正文预览字符数与截取方向（正数前N字，负数后N字），或 /setpreview <sub id> <count>
 /activeall 开启所有订阅
 /pauseall 暂停所有订阅
 /import 导入 OPML 文件
@@ -35,6 +38,9 @@ Channel 订阅支持的命令：
 /activeall @ChannelID 开启所有订阅
 /setfeedtag @ChannelID [sub id] [tag1] [tag2]  设置订阅标签（最多设置三个Tag，以空格分隔）
 /setfeedtitle @ChannelID [sub id] [title] 设置订阅标题（省略title恢复RSS原标题）
+/setlang @ChannelID [lang] 或 /setlang @ChannelID [sub id] [lang]
+/settz @ChannelID [timezone] 或 /settz @ChannelID [sub id] [timezone]
+/setpreview @ChannelID [count] 或 /setpreview @ChannelID [sub id] [count]
 /import 导入 OPML 文件
 /export @ChannelID 导出 OPML 文件
 /pauseall @ChannelID 暂停所有订阅

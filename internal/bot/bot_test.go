@@ -171,6 +171,131 @@ func TestRenderContentMessage(t *testing.T) {
 	assert.Contains(t, msg, "#news")
 }
 
+func TestRenderContentMessage_PreviewLimitAndDirection(t *testing.T) {
+	b := &Bot{
+		transCache: translate.NewCache(100),
+	}
+	source := &model.Source{Title: "Source"}
+	content := &model.Content{
+		HashID:      "hash_dir",
+		Title:       "Post",
+		RawLink:     "https://example.com",
+		Description: "<p>0123456789</p>",
+	}
+
+	ptrVal := func(v int) *int { return &v }
+
+	t.Run("positive limit takes head", func(t *testing.T) {
+		sub := &model.Subscribe{PreviewLength: ptrVal(5)}
+		msg, err := b.renderContentMessage(source, sub, content)
+		assert.NoError(t, err)
+		assert.Contains(t, msg, "0123…")
+		assert.NotContains(t, msg, "…6789")
+	})
+
+	t.Run("negative limit takes tail", func(t *testing.T) {
+		sub := &model.Subscribe{PreviewLength: ptrVal(-5)}
+		msg, err := b.renderContentMessage(source, sub, content)
+		assert.NoError(t, err)
+		assert.Contains(t, msg, "…6789")
+		assert.NotContains(t, msg, "0123…")
+	})
+
+	t.Run("zero limit disables preview", func(t *testing.T) {
+		sub := &model.Subscribe{PreviewLength: ptrVal(0)}
+		msg, err := b.renderContentMessage(source, sub, content)
+		assert.NoError(t, err)
+		assert.NotContains(t, msg, "0123456789")
+	})
+}
+
+type capturingTranslator struct {
+	lastTitle   string
+	lastPreview string
+}
+
+func (c *capturingTranslator) Translate(ctx context.Context, text, targetLang string) (string, error) {
+	return "translated:" + text, nil
+}
+
+func (c *capturingTranslator) TranslateContent(ctx context.Context, title, preview, targetLang string) (string, string, error) {
+	c.lastTitle = title
+	c.lastPreview = preview
+	return "translated:" + title, "translated:" + preview, nil
+}
+
+func TestRenderContentMessage_TruncatesBeforeTranslation(t *testing.T) {
+	mockTr := &capturingTranslator{}
+	b := &Bot{
+		translator: mockTr,
+		transCache: translate.NewCache(100),
+	}
+
+	source := &model.Source{Title: "News"}
+	ptrVal := func(v int) *int { return &v }
+
+	t.Run("positive limit truncates before translation to save tokens", func(t *testing.T) {
+		sub := &model.Subscribe{
+			TranslateLang: "zh",
+			PreviewLength: ptrVal(10),
+		}
+		longDesc := "This is a very long English description that would waste a lot of tokens if translated in full."
+		content := &model.Content{
+			HashID:      "hash_token_pos",
+			Title:       "English Title",
+			RawLink:     "https://example.com",
+			Description: longDesc,
+		}
+
+		msg, err := b.renderContentMessage(source, sub, content)
+		assert.NoError(t, err)
+		assert.Contains(t, msg, "translated:This is a…")
+		assert.Equal(t, "This is a…", mockTr.lastPreview)
+		// Ensure full long description was NOT sent to translator
+		assert.NotEqual(t, longDesc, mockTr.lastPreview)
+	})
+
+	t.Run("negative limit truncates before translation to save tokens", func(t *testing.T) {
+		sub := &model.Subscribe{
+			TranslateLang: "zh",
+			PreviewLength: ptrVal(-15),
+		}
+		longDesc := "This is a very long English description that would waste a lot of tokens if translated in full."
+		content := &model.Content{
+			HashID:      "hash_token_neg",
+			Title:       "English Title",
+			RawLink:     "https://example.com",
+			Description: longDesc,
+		}
+
+		msg, err := b.renderContentMessage(source, sub, content)
+		assert.NoError(t, err)
+		assert.Contains(t, msg, "translated:…lated in full.")
+		assert.Equal(t, "…lated in full.", mockTr.lastPreview)
+		assert.NotEqual(t, longDesc, mockTr.lastPreview)
+	})
+
+	t.Run("zero limit skips preview translation completely", func(t *testing.T) {
+		mockTr.lastPreview = "should_not_be_called"
+		sub := &model.Subscribe{
+			TranslateLang: "zh",
+			PreviewLength: ptrVal(0),
+		}
+		content := &model.Content{
+			HashID:      "hash_token_zero",
+			Title:       "English Title",
+			RawLink:     "https://example.com",
+			Description: "Long description here",
+		}
+
+		msg, err := b.renderContentMessage(source, sub, content)
+		assert.NoError(t, err)
+		assert.Contains(t, msg, "translated:English Title")
+		// Preview translation was skipped
+		assert.Equal(t, "should_not_be_called", mockTr.lastPreview)
+	})
+}
+
 func TestBroadcastEdit_NoDuplicateTranslationWhenContentUnchanged(t *testing.T) {
 	mockTr := &mockTranslator{shouldFail: false}
 	b := &Bot{

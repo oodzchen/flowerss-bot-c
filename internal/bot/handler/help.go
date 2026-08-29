@@ -32,6 +32,7 @@ func (h *Help) Handle(ctx tb.Context) error {
 	/setinterval 设置订阅刷新频率
 	/setlang 设置订阅推送翻译语言（如 /setlang zh）
 	/settz 设置订阅推送时间显示时区（如 /settz Asia/Shanghai 或 /settz +08:00）
+	/setpreview 设置订阅正文预览字符数与截取方向（如 /setpreview 400 或 /setpreview -400）
 	/translate 测试翻译服务（调试用，如 /translate zh Hello world）
 	/activeall 开启所有订阅
 	/pauseall 暂停所有订阅

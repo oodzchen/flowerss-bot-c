@@ -470,6 +470,36 @@ func (mr *MockSubscriptionMockRecorder) UpdateSubscriptionsTimezone(ctx, userID,
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateSubscriptionsTimezone", reflect.TypeOf((*MockSubscription)(nil).UpdateSubscriptionsTimezone), ctx, userID, tz)
 }
 
+// UpdateSubscriptionPreviewLength mocks base method.
+func (m *MockSubscription) UpdateSubscriptionPreviewLength(ctx context.Context, userID int64, sourceID uint, length *int) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateSubscriptionPreviewLength", ctx, userID, sourceID, length)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UpdateSubscriptionPreviewLength indicates an expected call of UpdateSubscriptionPreviewLength.
+func (mr *MockSubscriptionMockRecorder) UpdateSubscriptionPreviewLength(ctx, userID, sourceID, length interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateSubscriptionPreviewLength", reflect.TypeOf((*MockSubscription)(nil).UpdateSubscriptionPreviewLength), ctx, userID, sourceID, length)
+}
+
+// UpdateSubscriptionsPreviewLength mocks base method.
+func (m *MockSubscription) UpdateSubscriptionsPreviewLength(ctx context.Context, userID int64, length *int) (int64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateSubscriptionsPreviewLength", ctx, userID, length)
+	ret0, _ := ret[0].(int64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UpdateSubscriptionsPreviewLength indicates an expected call of UpdateSubscriptionsPreviewLength.
+func (mr *MockSubscriptionMockRecorder) UpdateSubscriptionsPreviewLength(ctx, userID, length interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateSubscriptionsPreviewLength", reflect.TypeOf((*MockSubscription)(nil).UpdateSubscriptionsPreviewLength), ctx, userID, length)
+}
+
 // UpsertSubscription mocks base method.
 func (m *MockSubscription) UpsertSubscription(ctx context.Context, userID int64, sourceID uint, newSubscription *model.Subscribe) error {
 	m.ctrl.T.Helper()

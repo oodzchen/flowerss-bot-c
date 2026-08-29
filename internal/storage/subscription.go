@@ -235,3 +235,27 @@ func (s *SubscriptionStorageImpl) UpdateSubscriptionsTimezone(
 	}
 	return result.RowsAffected, nil
 }
+
+// UpdateSubscriptionPreviewLength updates the preview length of one subscription.
+func (s *SubscriptionStorageImpl) UpdateSubscriptionPreviewLength(
+	ctx context.Context, userID int64, sourceID uint, length *int,
+) (int64, error) {
+	result := s.db.WithContext(ctx).Where(
+		"user_id = ? and source_id = ?", userID, sourceID,
+	).Update("preview_length", length)
+	if result.Error != nil {
+		return 0, result.Error
+	}
+	return result.RowsAffected, nil
+}
+
+// UpdateSubscriptionsPreviewLength updates the preview length of every subscription owned by userID.
+func (s *SubscriptionStorageImpl) UpdateSubscriptionsPreviewLength(
+	ctx context.Context, userID int64, length *int,
+) (int64, error) {
+	result := s.db.WithContext(ctx).Where("user_id = ?", userID).Update("preview_length", length)
+	if result.Error != nil {
+		return 0, result.Error
+	}
+	return result.RowsAffected, nil
+}
